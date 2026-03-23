@@ -9,42 +9,40 @@ import collections as c
 import csv
 # from Scraped_functions import*
 
-def find_counterexamples(range1,range2, nb_trials=5):
+def find_counterexamples(range1,range2, nb_vertices, nb_trials=5):
     time_tag_for_log = datetime.datetime.now().strftime('%d_%m_%Y_%Hh%M_%S')
-
+    proba_interval = np.linspace(range1,range2,10)
     # cliques_apx = np.array([])
     # times_values = np.array([])
-    for nb_vertices in range(range1,range2+1):
-        print(f"Switched to {nb_vertices} vertices")
-        param = 6
-        proba = 0.1
+    for proba in proba_interval:
+        print(f"Switched to {nb_vertices} vertices with probability {proba}")
+        param = np.ceil(nb_vertices/(np.power(np.log(nb_vertices),8)))
         total_creation_time = 0
         total_analysis_time_using_core = 0
+        nb_times_odd_extension_required = 0 #tracks the amount of times the random graph
+        # does not already a large enough clique
         for trials in range(0,nb_trials):
-            print(f"Trial:{trials}")
-            time_start = time.time()
+            print(f"Trial:{trials+1}")
             random_graph = nx.complement(clear_H0(nb_vertices,param,proba))
             print("Random graph : ok !")
-            odd_extended_random_graph = odd_extension_graph(random_graph)
-            print("Odd extension : ok !")
-            graph_created_time = time.time()
-            graph_creation_duration = graph_created_time - time_start
-            print(f"Time needed to create the graph:{graph_creation_duration}")
-            total_creation_time += graph_creation_duration
-            #iterate through the cliques, and if it finds one that is larger than n/2, then skips
-            # implement a check, if it takes too long, save the graph as candidate
-
-            #likely won't exit via time limit, so no need to check if it did
             normal_graph_has_large_clique,_ = has_clique_of_size(random_graph,nb_vertices/2,nb_vertices)
-            #usually happens that the original graph itself has a clique of size at least n/2
+            #first check, there is a high chance that the starting graph already has a clique large enough
             if not normal_graph_has_large_clique:
+                nb_times_odd_extension_required += 1
+                time_start = time.time()
+                odd_extended_random_graph = odd_extension_graph(random_graph)
+                print("Odd extension : ok !")
+                graph_created_time = time.time()
+                graph_creation_duration = graph_created_time - time_start
+                print(f"Time needed to create the graph:{graph_creation_duration}")
+                total_creation_time += graph_creation_duration
+
                 contains_large_clique, time_expired = (
                     has_clique_of_size(odd_extended_random_graph,nb_vertices/2,10*nb_vertices+600))
 
                 if not contains_large_clique:
                 # 1. Create the directory path object
-                    if not time_expired: #is likely to save the same graph twice,
-                        # but no fix needed since I will keep only one method in the end
+                    if not time_expired:
                         folder_path = Path(f"Actual_Counterexamples/vertices_{nb_vertices}")
                         print("FOUND A COUNTEREXAMPLE !!!!!!!!!!")
                     else:
@@ -67,10 +65,10 @@ def find_counterexamples(range1,range2, nb_trials=5):
                     matrix.to_csv(full_path, index=True)
                     print(f"Saved: {full_path}")
 
-            time_required_for_analysis = time.time() - graph_created_time
-            print(f"Time needed to analyze:{time_required_for_analysis},"
-                  f"nb_vertices:{nb_vertices}")
-            total_analysis_time_using_core += time_required_for_analysis
+                time_required_for_analysis = time.time() - graph_created_time
+                print(f"Time needed to analyze:{time_required_for_analysis},"
+                      f"nb_vertices:{nb_vertices}")
+                total_analysis_time_using_core += time_required_for_analysis
 
 
         # cliques_apx = np.append(cliques_apx, average_minor/nb_trials) #for the plots
@@ -84,21 +82,17 @@ def find_counterexamples(range1,range2, nb_trials=5):
         # Create the directory if it doesn't exist
         folder_path_time_logs.parent.mkdir(parents=True, exist_ok=True)
 
+        if not nb_times_odd_extension_required: #to avoid a division by zero error
+            nb_times_odd_extension_required = 1
         # Define the data row
         data_row_with_core = [
             nb_vertices,
-            round(total_creation_time / nb_trials, 3),
+            round(total_creation_time / nb_times_odd_extension_required, 3),
             round(total_analysis_time_using_core / nb_trials, 3),
-            time_tag_for_log
+            proba,
+            time_tag_for_log,
         ]
-        #will not be needed it the future
-        # data_row_without_core = [
-        #     nb_vertices,
-        #     round(total_creation_time / nb_trials, 3),
-        #     round(total_analysis_time_without_core / nb_trials, 3),
-        #     False,
-        #     time_tag_for_log
-        # ]
+
         # Check if we need to write a header (if file is empty/new)
         file_exists = folder_path_time_logs.exists()
 
@@ -107,11 +101,11 @@ def find_counterexamples(range1,range2, nb_trials=5):
 
             # Write header only once
             if not file_exists:
-                writer.writerow(["Vertices", "Avg Creation Time", "Avg Analysis Time", "Time of computation"])
+                writer.writerow(["Vertices", "Avg Creation Time", "Avg Analysis Time",
+                                 "Probability", "Time of computation"])
 
             # Append the data
             writer.writerow(data_row_with_core)
-            # writer.writerow(data_row_without_core)
 
 
 
