@@ -44,7 +44,6 @@ def remove_triangles(some_graph):
         u,v,w = triangle
         if is_clique(H,triangle):# if not a triangle anymore, no need to remove an edge
             #necessary because if edge is not present, there is an error when trying to remove it
-            # Remove the edge between the first two nodes of the triangle
             random_edge = np.random.randint(0,3)
             # print(random_edge)
             match random_edge:
@@ -97,6 +96,32 @@ def Graph_h0(H_Red_prime, H_Blue_prime, nb_vertices, parameter_m):
     return H_0, red_edges_set, blue_edges_set
 
 def clear_H0(nb_vertices,parameter_m,proba):
+    """
+    Reproduces the process descbribed in [1], Section 3.
+    Creates two binomial random graphs on m vertices, with probability p, one is red H_R, the other is blue H_B.
+    It then removes all triangles in both graphs (function remove_triangles) to get H_R' and H_B'.
+    Next, (this part is handled inside the function Graph_h0), pick a random map 'red' pi_R and a random map 'blue' pi_B.
+    Then, pullback (logic is handled by the pullback function) the triangleless red graph using the random map 'red' and
+    similarly for the blue graph, pullback preserves clique number, so these graphs are triangleless.
+    Afterward, it combines the graphs to create a graph H0 on n vertices, and keeps track of which edge are red and blue
+    (might be both at the same time).
+    This graph (very likely) has triangles which have at most two edges of each color. The triangles are removed as follows;
+    - If a single edge is red, it is removed,
+    - If a single edge is blue, it is removed,
+    - If both colors are present twice, then either the exclusively red or the exclusively blue edge is removed,
+        decided by a coin flip.
+    The only step missing, is taking the complement, which is done outside of this function.
+
+    Parameters -----------
+    :param nb_vertices: Desired size of the final random graph, denoted by n in [1]
+    :param parameter_m: Size of the two random graphs, denoted by m in [1]
+    :param proba: Probability used to create the random graphs. denoted by p in [1]
+    :return: The graph H0 from [1]
+
+    References ---------
+    [1]: Marcus Kühn, Lisa Sauermann, Raphael Steiner, and Yuval Wigderson. Disproof
+    of the Odd Hadwiger Conjecture, December 2025. URL: https://arxiv.org/abs/2512.20392v1
+    """
     H_R = nx.erdos_renyi_graph(parameter_m,proba)
     H_B = nx.erdos_renyi_graph(parameter_m,proba)
     H_R_prime = remove_triangles(H_R)
@@ -136,7 +161,7 @@ def clear_H0(nb_vertices,parameter_m,proba):
                         u, v = list(e)
                         if h0.has_edge(u, v): h0.remove_edge(u, v)
     for triangle in get_triangles(h0):
-        print("noob",triangle)
+        print("Forgot a triangle :skull_emoji:",triangle) #sanity check, to be sure no triangle are left
     return h0
 
 """
@@ -144,6 +169,22 @@ For the odd extension
 """
 
 def odd_extension_graph(some_graph):
+    """
+    Odd extension of a graph
+    From an existing graph G, extend the vertex set as follows;
+    For each edge xy add two nodes (x,y) and (y,x). They are distinguished as nodes.
+    Regarding the edges we proceed as follows;
+    - Keep all the original edges from G
+    - If v is an original vertex and (a,b) a new vertex, connect them
+        if and only if v is disjoint from (a,b) and ax is an edge in G (it is not enough that bx is an edge in G)
+    - If (a,b) and (c,d) are two new vertices, connect them if and only if they are disjoint and
+    ac is an edge in G or bd is an edge in G
+
+    A clique in the odd extension of a graph described a shallow odd clique minor
+
+    :param some_graph: A simple non-oriented loopless graph
+    :return: Odd extension of the input graph
+    """
     temp_graph = some_graph.copy()
     original_vertices = set(some_graph.nodes())
     list_edges = list(some_graph.edges())
@@ -182,7 +223,7 @@ Required for the check if it is a counterexample
 """
 def has_clique_of_size(some_graph, threshold,time_limit,using_core_method=True):
     """
-    Returns True as soon as a clique of size >= s is found.
+    Returns True as soon as a maximal clique of size >= s is found.
     Otherwise, returns False after checking all maximal cliques.
     """
     # find_cliques yields maximal cliques one by one
@@ -208,3 +249,73 @@ def has_clique_of_size(some_graph, threshold,time_limit,using_core_method=True):
     return False,exit_via_time_limit
     #implement a "fail-safe" if the computation takes too long
 
+
+def has_large_clique(graph, threshold,time_limit,nodes=None):
+    """
+    Function is adapted from the find_cliques function of the networkx library.
+
+    Returns True if a clique of size >= threshold exists.
+    Returns False if no such clique exists OR if time_limit is reached.
+    """
+    start_time = time.time()
+    G = nx.k_core(graph, k=threshold - 1)
+    if threshold <= 0: return True, False #those two lines are useless in the event threshold is nb_vertices/2
+    if len(G) < threshold: return False, False
+
+    adj = {u: {v for v in G[u] if v != u} for u in G}
+    Q = nodes[:] if nodes is not None else []
+
+    cand = set(G)
+    for node in Q:
+        if node not in cand:
+            raise ValueError(f"The given `nodes` {nodes} do not form a clique")
+        cand &= adj[node]
+
+    if len(Q) >= threshold: return True, False
+
+    if not cand:
+        return len(Q) >= threshold
+
+    subg = cand.copy()
+    stack = []
+    Q.append(None)
+
+    u = max(subg, key=lambda u: len(cand & adj[u]))
+    ext_u = cand - adj[u]
+
+    try:
+        while True:
+            # --- TIMEOUT CHECK ---
+            if time_limit and (time.time() - start_time) > time_limit:
+                print(f"Timeout reached ({time_limit}s). Terminating search.")
+                return False, True
+
+            if ext_u:
+                q = ext_u.pop()
+                cand.remove(q)
+                Q[-1] = q
+
+                current_size = len([n for n in Q if n is not None])
+                # print(current_size)
+                if current_size >= threshold:
+                    print(f"Algorithm works well, there is a clique of size: {current_size}, which should equal {threshold}")
+                    return True, False
+
+                adj_q = adj[q]
+                cand_q = cand & adj_q
+
+                # Pruning: Only dive deeper if threshold is physically reachable
+                if current_size + len(cand_q) >= threshold:
+                    subg_q = subg & adj_q
+                    if subg_q:
+                        stack.append((subg, cand, ext_u))
+                        Q.append(None)
+                        subg = subg_q
+                        cand = cand_q
+                        u = max(subg, key=lambda u: len(cand & adj[u]))
+                        ext_u = cand - adj[u]
+            else:
+                Q.pop()
+                subg, cand, ext_u = stack.pop()
+    except IndexError:
+        return False, False

@@ -4,5 +4,6 @@ from Generals_functions import*
 import networkx as nx
 
 
-find_counterexamples(0.01,0.2 , 50)
+find_counterexamples(0.01,0.2 , 40)
+
 
