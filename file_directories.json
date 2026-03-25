@@ -1,0 +1,4 @@
+{
+    "log_odd_directory": "Logs/Required_odd_ext",
+    "log_non_odd_directory": "Logs/Fast_computation"
+}
