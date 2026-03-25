@@ -1,14 +1,20 @@
 import networkx as nx
 # from tqdm import tqdm
+import collections as c
 from itertools import combinations
 import numpy as np
 import time
+import pandas as pd
 
 start = time.time()
 
-def min_degree(some_graph):
-    deltaG = min(nbhood[1] for nbhood in some_graph.degree())
-    return deltaG
+"""
+General functions
+"""
+
+# def min_degree(some_graph):
+#     deltaG = min(nbhood[1] for nbhood in some_graph.degree())
+#     return deltaG
 
 def is_clique(graph,list_of_nodes):
     for pair in combinations(list_of_nodes,2):
@@ -17,7 +23,7 @@ def is_clique(graph,list_of_nodes):
     return True
 
 """
-For the creation of the graph H_0
+To remove the triangles in a graph
 """
 
 
@@ -31,7 +37,7 @@ def remove_triangles(some_graph):
     Finds all triangles in an undirected graph and removes one edge
     from each triangle to break the cycle.
 
-    Tune so the removed edge is random, and not the one with lower index
+    The random part is to ensure that the removed edge is not necessarily the one between the lower index vertices
     """
     # Create a copy so we don't modify the original graph object unexpectedly
     H = some_graph.copy()
@@ -55,14 +61,27 @@ def remove_triangles(some_graph):
                     H.remove_edge(v,w)
     return H
 
+"""
+For the creation of the graph H0 in [1], Section 3.
+"""
+
 def uniform_random_fct(n,m):
     return np.random.randint(0,m,size=n)
 
 
-def pullback(nb_vertices, some_graph, mapping):
+def pullback(some_graph, mapping):
+    """
+    From a graph G on m vertices, and a mapping f:[n] -> [m] (usually m<n), create a new graph
+    G^ with n vertices and connect two vertices u,v iff f(u) and f(v) are adjacent in G.
+
+    :param some_graph:
+    :param mapping:
+    :return:
+    """
     G = nx.Graph()
     # 1. Define the vertices for the new graph
-    new_nodes = list(range(nb_vertices))
+    # new_nodes = list(range(nb_vertices))
+    new_nodes = list(range(len(mapping)))
     G.add_nodes_from(new_nodes)
 
     # 2. Iterate over pairs of vertices in the NEW graph
@@ -76,14 +95,28 @@ def pullback(nb_vertices, some_graph, mapping):
     return G
 
 def Graph_h0(H_Red_prime, H_Blue_prime, nb_vertices, parameter_m):
+    """
+    Picks a random map 'red' pi_R and a random map 'blue' pi_B.
+    Then, pullback (logic is handled by the pullback function) the triangleless red graph using the random map 'red' and
+    similarly for the blue graph, pullback preserves clique number, so these graphs are triangleless.
+    Afterward, it combines the graphs to create a graph H0 on n vertices, and keeps track of which edge are red and blue
+    (might be both at the same time).
+    :param H_Red_prime:
+    :param H_Blue_prime:
+    :param nb_vertices:
+    :param parameter_m:
+    :return:
+    """
     pi_Red = uniform_random_fct(nb_vertices, parameter_m)
     pi_Blue = uniform_random_fct(nb_vertices, parameter_m)
 
-    red_graph = pullback(nb_vertices, H_Red_prime, pi_Red)
-    blue_graph = pullback(nb_vertices, H_Blue_prime, pi_Blue)
+    red_graph = pullback(H_Red_prime, pi_Red)
+    blue_graph = pullback(H_Blue_prime, pi_Blue)
 
     # CRITICAL: Convert to sets of frozensets to avoid ordering issues
     # and to make them static (not a live view of the graph)
+    # later used to check which edges are red and which are blue, otherwise every edge is tagged as red
+    # (networkx does not make copy using =, only a pointer to an element)
     red_edges_set = {frozenset(e) for e in red_graph.edges()}
     blue_edges_set = {frozenset(e) for e in blue_graph.edges()}
 
@@ -216,106 +249,3 @@ def odd_extension_graph(some_graph):
             if xp in adj[x] or yp in adj[y]:
                 temp_graph.add_edge(edge1, edge2)
     return temp_graph
-
-
-"""
-Required for the check if it is a counterexample
-"""
-def has_clique_of_size(some_graph, threshold,time_limit,using_core_method=True):
-    """
-    Returns True as soon as a maximal clique of size >= s is found.
-    Otherwise, returns False after checking all maximal cliques.
-    """
-    # find_cliques yields maximal cliques one by one
-    # print(time.time() - start)
-    if using_core_method:
-        core_graph = nx.k_core(some_graph, k=threshold - 1)
-        graph_used = core_graph
-    else:
-        graph_used = some_graph
-    # print(f"Start of clique computation:{time.time() - start}")
-    start_time = time.time()
-    exit_via_time_limit = False
-    for clique in nx.find_cliques(graph_used): #can be optimized here, because find_cliques
-        # only returns a maximal clique, so the computation might continue while having found a clique large enough
-        if len(clique) >= threshold:
-            print(f"Size of found clique:{len(clique)}, size of graph:{len(graph_used)}")
-            return True,exit_via_time_limit
-
-        if time.time() - start_time > time_limit:
-            exit_via_time_limit = True
-            print(f"\nTIME LIMIT EXCEEDED")
-            break  # Exit the loop if too much time has passed
-    return False,exit_via_time_limit
-    #implement a "fail-safe" if the computation takes too long
-
-
-def has_large_clique(graph, threshold,time_limit,nodes=None):
-    """
-    Function is adapted from the find_cliques function of the networkx library.
-
-    Returns True if a clique of size >= threshold exists.
-    Returns False if no such clique exists OR if time_limit is reached.
-    """
-    start_time = time.time()
-    G = nx.k_core(graph, k=threshold - 1)
-    if threshold <= 0: return True, False #those two lines are useless in the event threshold is nb_vertices/2
-    if len(G) < threshold: return False, False
-
-    adj = {u: {v for v in G[u] if v != u} for u in G}
-    Q = nodes[:] if nodes is not None else []
-
-    cand = set(G)
-    for node in Q:
-        if node not in cand:
-            raise ValueError(f"The given `nodes` {nodes} do not form a clique")
-        cand &= adj[node]
-
-    if len(Q) >= threshold: return True, False
-
-    if not cand:
-        return len(Q) >= threshold
-
-    subg = cand.copy()
-    stack = []
-    Q.append(None)
-
-    u = max(subg, key=lambda u: len(cand & adj[u]))
-    ext_u = cand - adj[u]
-
-    try:
-        while True:
-            # --- TIMEOUT CHECK ---
-            if time_limit and (time.time() - start_time) > time_limit:
-                print(f"Timeout reached ({time_limit}s). Terminating search.")
-                return False, True
-
-            if ext_u:
-                q = ext_u.pop()
-                cand.remove(q)
-                Q[-1] = q
-
-                current_size = len([n for n in Q if n is not None])
-                # print(current_size)
-                if current_size >= threshold:
-                    print(f"Algorithm works well, there is a clique of size: {current_size}, which should equal {threshold}")
-                    return True, False
-
-                adj_q = adj[q]
-                cand_q = cand & adj_q
-
-                # Pruning: Only dive deeper if threshold is physically reachable
-                if current_size + len(cand_q) >= threshold:
-                    subg_q = subg & adj_q
-                    if subg_q:
-                        stack.append((subg, cand, ext_u))
-                        Q.append(None)
-                        subg = subg_q
-                        cand = cand_q
-                        u = max(subg, key=lambda u: len(cand & adj[u]))
-                        ext_u = cand - adj[u]
-            else:
-                Q.pop()
-                subg, cand, ext_u = stack.pop()
-    except IndexError:
-        return False, False

@@ -1,160 +1,93 @@
 import datetime
+
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
-from Generals_functions import*
-import time
+
 from pathlib import Path
-import collections as c
 import csv
 # from Scraped_functions import*
-
-def find_counterexamples(range1,range2, nb_vertices, nb_trials=5):
-    proba_interval = np.linspace(range1,range2,10)
-    print(proba_interval)
-    for proba in proba_interval:
-        print(f"Switched to {nb_vertices} vertices with probability {proba}")
-        # param = int(np.ceil(nb_vertices/(np.power(np.log(nb_vertices),8))))
-        param = int(np.ceil(nb_vertices/3))
-        print(f"Value of the parameter:{param}")
-        total_creation_time = 0
-        total_analysis_time = 0
-        total_analysis_time_with_optim = 0
-        nb_times_odd_extension_required = 0 #tracks the amount of times the random graph
-        # does not already a large enough clique
-        for trials in range(0,nb_trials):
-            print(f"Trial:{trials+1}")
-            random_graph = nx.complement(clear_H0(nb_vertices,param,proba))
-            print("Random graph : ok !")
-            normal_graph_has_large_clique, _ = has_clique_of_size(random_graph,
-                                                                  threshold=nb_vertices/2,time_limit=nb_vertices)
-            # normal_graph_has_large_clique_optimized, _ = has_large_clique(random_graph,
-            #                                                               threshold=nb_vertices/2,time_limit=nb_vertices)
-            #first check, there is a high chance that the starting graph already has a clique large enough
-            if normal_graph_has_large_clique:
-                print(f"Graph is already large enough")
-            else:
-                nb_times_odd_extension_required += 1
-                print("Odd extension required, creating odd extension")
-                time_start = time.time()
-                odd_extended_random_graph = odd_extension_graph(random_graph)
-                print("Odd extension : ok !")
-                graph_created_time = time.time()
-                graph_creation_duration = graph_created_time - time_start
-                print(f"Time needed to create the odd extended graph:{graph_creation_duration}")
-                total_creation_time += graph_creation_duration
-                contains_large_clique, time_expired = (
-                    has_clique_of_size(odd_extended_random_graph,threshold=nb_vertices/2,time_limit=10*nb_vertices+600))
-                odd_stopwatch_2 = time.time()
-                time_required_for_analysis = time.time() - graph_created_time
-                machin,truc = has_large_clique(odd_extended_random_graph,threshold=nb_vertices/2,time_limit=10*nb_vertices+600)
-                odd_stopwatch_3 = time.time()
-                opti_ana_time = odd_stopwatch_3- odd_stopwatch_2
-
-                print(f"Time needed to analyze:{time_required_for_analysis},"
-                      f"nb_vertices:{nb_vertices}")
-                total_analysis_time += time_required_for_analysis
-                total_analysis_time_with_optim += opti_ana_time
-                if not contains_large_clique:
-                # 1. Create the directory path object
-                    if not time_expired:
-                        folder_path = Path(f"Actual_Counterexamples/vertices_{nb_vertices}")
-                        print("FOUND A COUNTEREXAMPLE !!!!!!!!!!")
-                    else:
-                        folder_path = Path(f"Candidates/vertices_{nb_vertices}")
-                        print("time expired, possible candidate")
-
-                    # 2. Create the folder if it doesn't exist
-                    folder_path.mkdir(parents=True, exist_ok=True)
-
-                    # 3. Generate timestamp with microseconds (%f)
-                    # Result: "13_03_2026_16h22M05_123456"
-                    timestamp = datetime.datetime.now().strftime('%d_%m_%Y_%Hh%M%S')
-
-                    # 4. Construct the full file path
-                    file_name = f"{nb_vertices},{timestamp}.csv"
-                    full_path = folder_path / file_name
-
-                    # 5. Save the matrix
-                    matrix = nx.to_pandas_adjacency(random_graph)
-                    matrix.to_csv(full_path, index=True)
-                    print(f"Saved: {full_path}")
-
-        # Log the timing
-
-        Title_string = "Computation_times.csv"  # Changed extension to .csv
-        time_tag_for_log = datetime.datetime.now().strftime('%Hh%M_%S')
-        day_tag_for_log = datetime.datetime.now().strftime('%d_%m_%Y')
-        folder_path_time_logs = Path(f"Logs_{day_tag_for_log}/{Title_string}")
-
-        # Create the directory if it doesn't exist
-        folder_path_time_logs.parent.mkdir(parents=True, exist_ok=True)
-
-        if nb_times_odd_extension_required: #save the timing only if odd_extension required
-        # Define the data row
-            data_row = [
-                nb_vertices,
-                round(total_creation_time / nb_times_odd_extension_required, 3),
-                round(total_analysis_time / nb_times_odd_extension_required, 3),
-                round(total_analysis_time_with_optim/nb_times_odd_extension_required,3),
-                proba,
-                time_tag_for_log,
-                time_expired
-            ]
-
-            # Check if we need to write a header (if file is empty/new)
-            file_exists = folder_path_time_logs.exists()
-
-            with open(folder_path_time_logs, "a", newline="") as f:
-                writer = csv.writer(f)
-
-                # Write header only once
-                if not file_exists:
-                    writer.writerow(["Vertices", "Avg Creation Time", "Avg Analysis Time With Old algorithm",
-                                     "Avg Analysis Time With New algorithm",
-                                     "Probability", "Time of computation"])
-
-                # Append the data
-                writer.writerow(data_row)
+from Graph_creation_fct import*
+from Clique_search_fcts import *
+import time
+from ExpEntry import*
 
 
+"""
+Add a function that takes a given graph, not just a random one (I already have it lol)
+"""
+
+def find_counterexamples(proba_interval,param_interval, nb_vertices, time_limit_fct, nb_trials=5):
+    ExperimentEntry.initialize_id() #allows for the ID of the trials to start from the highest value of current trials
+    proba_interval = np.linspace(proba_interval[0],proba_interval[1],10)
+    parameter_interval = range(param_interval[0],param_interval[1]+1)
+    # print(proba_interval)
+    computation_time_limit = time_limit_fct(nb_vertices)  # allows to change the timit limit function outside the function
+    for proba in proba_interval: #add a for loop for parameter_m
+        for param in parameter_interval:
+            print(f"Switched to {nb_vertices} vertices, parameter {param} and with probability {proba}")
+            for trials in range(0,nb_trials):
+                run_trial(nb_vertices, param, proba,computation_time_limit,trials)
 
 
-def has_s_core(G, S): #quick algorithm, but is likely (how likely?) to skip a counterexample
-    """
-    Prunes the graph G to find if an (S-1)-core exists using an O(n+m) approach.
-    Uses collections.deque for efficient O(1) pop operations.
-    """
-    if G.number_of_nodes() < S:
-        return False
+        """
+        Add a new way to identify which entry in the csv corresponds to which graph,
+        and save the odd extended graph, then put into the website
+        """
 
-    threshold = S - 1
-    # 1. Initialize degrees and the double-ended queue
-    degrees = dict(G.degree())
-    queue = c.deque([node for node, deg in degrees.items() if deg < threshold])
+def run_trial(nb_vertices, param, proba,computation_time_limit,trial_number=None):
+    if not trial_number: print(f"Trial:{trial_number + 1}")
+    # print(computation_time_limit)
+    random_graph = nx.complement(clear_H0(nb_vertices, param, proba))
+    # print("Random graph : ok !")
 
-    # Track removed nodes in a set for O(1) lookups
-    removed = set(queue)
-    remaining_count = G.number_of_nodes() - len(removed)
+    normal_graph_has_large_clique, _ = has_large_clique(random_graph,
+                                                        threshold=nb_vertices / 2, time_limit=computation_time_limit)
 
-    # 2. Iterative pruning
-    while queue:
-        # popleft() is O(1), whereas list.pop(0) is O(n)
-        v = queue.popleft()
+    if not normal_graph_has_large_clique:
+        print(f"Odd extension required, creating odd extension, {datetime.now().strftime('%H:%M:%S')}")
+        time_start = time.time()
+        odd_extended_random_graph = odd_extension_graph(random_graph)
+        print(f"Odd extension : ok !,{datetime.now().strftime('%H:%M:%S')}")
+        graph_created_time = time.time()
+        graph_creation_duration = graph_created_time - time_start
+        print(f"Time needed to create the odd extended graph:{round(graph_creation_duration,4)}")
+        contains_large_clique, time_expired = (
+            has_large_clique(odd_extended_random_graph, threshold=nb_vertices / 2, time_limit=computation_time_limit))
 
-        for neighbor in G.neighbors(v):
-            if neighbor not in removed:
-                degrees[neighbor] -= 1
+        time_required_for_analysis = time.time() - graph_created_time
 
-                # If neighbor's degree drops below threshold, prune it
-                if degrees[neighbor] < threshold:
-                    removed.add(neighbor)
-                    queue.append(neighbor)
-                    remaining_count -= 1
+        print(f"Time needed to analyze:{round(time_required_for_analysis,4)},{datetime.now().strftime('%H:%M:%S')}")
 
-                    # Early exit: if we have fewer than S nodes left,
-                    # an S-clique is mathematically impossible.
-                    if remaining_count < S:
-                        return False
+        new_entry = ExperimentEntry(vertices=nb_vertices,for_odd=True, id_needs_increasing=True and time_expired, creation_time=round(graph_creation_duration,4),
+                                    analysis_time=round(time_required_for_analysis,4), parameter=param,
+                                    probability=proba, time_expired=time_expired,time_limit=computation_time_limit)
+        new_entry.log()
+        if not contains_large_clique:
+            save_graph(random_graph, int(new_entry.id), save_into_candidate_folder=time_expired)
+    else:
+        print(f"Graph has large clique already")
+        new_entry = ExperimentEntry(vertices=nb_vertices,for_odd=False, id_needs_increasing=False, parameter=param,
+                                    probability=proba)
+        new_entry.log()
 
-    return remaining_count >= S
+def save_graph(Graph,ID,save_into_candidate_folder=True):
+    if not save_into_candidate_folder:
+        folder_path = Path(f"Counterexamples")
+        print("FOUND A COUNTEREXAMPLE !!!!!!!!!!")
+    else:
+        folder_path = Path(f"Candidates_w_ID")
+        print("time expired, possible candidate")
+
+    # 2. Create the folder if it doesn't exist
+    folder_path.mkdir(parents=True, exist_ok=True)
+
+
+    # 4. Construct the full file path
+    file_name = f"{ID}.csv"
+    full_path = folder_path / file_name
+
+    # 5. Save the matrix
+    matrix = nx.to_pandas_adjacency(Graph)
+    matrix.to_csv(full_path, index=True)
+    print(f"Saved: {full_path}")
