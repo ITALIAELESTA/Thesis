@@ -2,22 +2,22 @@ from pathlib import Path
 import csv
 import os
 import pandas as pd
-# import json
 from datetime import datetime, timedelta
-
+from .utils import get_file_path
 
 
 class ExperimentEntry:
     _id_counter = 1
-
-    def __init__(self, for_odd=True, id_needs_increasing=False, vertices=None, creation_time=None, analysis_time=None,
+    id_string = 'id'
+    odd_log_dir = Path(get_file_path('odd_directory'))
+    non_odd_log_dir = Path(get_file_path('non_odd_directory'))
+    def __init__(self, for_odd=True, vertices=None, creation_time=None, analysis_time=None,
                  parameter=None, probability=None, time_expired=None,time_limit=None):
-        if id_needs_increasing:
+        if for_odd:
             self.id = ExperimentEntry._id_counter
             ExperimentEntry._id_counter += 1
         else:
             self.id = None
-
         self.relevant = for_odd
         self.vertices = vertices
         self.creation_time = creation_time
@@ -26,7 +26,7 @@ class ExperimentEntry:
         self.probability = probability
         self.time_expired = time_expired
         self.daystamp = datetime.now().strftime("%d_%m_%Y")
-        self.timestamp = datetime.now().strftime('%Hh%M_%S')
+        self.timestamp = datetime.now().strftime('%H:%M:%S')
         self.time_limit = time_limit
 
     @classmethod
@@ -35,8 +35,9 @@ class ExperimentEntry:
         today_str = datetime.now().strftime("%d_%m_%Y")
         yesterday_str = (datetime.now() - timedelta(days=1)).strftime("%d_%m_%Y")
 
-        today_file = f"Logs/Required_odd_ext/{today_str}_Computation_times.csv"
-        yesterday_file = f"Logs/Required_odd_ext/{yesterday_str}_Computation_times.csv"
+
+        today_file = f"{cls.odd_log_dir}/{today_str}_Computation_times.csv"
+        yesterday_file = f"{cls.odd_log_dir}/{yesterday_str}_Computation_times.csv"
 
         # 2. Check Today first, then Yesterday
         target_file = None
@@ -52,17 +53,17 @@ class ExperimentEntry:
                 df = pd.read_csv(target_file)
                 if not df.empty:
                     # Logic: Max ID + 1
-                    cls._id_counter = df['id'].max() + 1
+                    cls._id_counter = df[cls.id_string].max() + 1
                     print(f"Initialized id to {cls._id_counter} from {target_file}")
+                    print(f"{today_file}")
             except Exception as e:
                 print(f"Found file {target_file} but couldn't read it: {e}")
         else:
             print("No recent files found. Starting ID at 1.")
 
-
     def log(self):
         headers = [
-            "ID", "Vertices", "Parameter", "Probability", "Creation Time",
+            type(self).id_string, "Vertices", "Parameter", "Probability", "Creation Time",
             "Analysis Time", "Timestamp", "Exit via Timeout", "Time Limit"
         ]
 
@@ -72,26 +73,20 @@ class ExperimentEntry:
                     f"{self.time_limit}s"
         ]
 
-        # with open('file_directories.json') as f:
-        #     config = json.load(f)
-
-
-        # if self.relevant:
-        #     log_dir = config['log_odd_directory']
-        #     file_path = log_dir / f"{self.daystamp}_Computation_times.csv"
-        #     print("ok")
-        #
-        # else:
-        #     log_dir = config['log_non_odd_directory']
-        #     file_path = log_dir / f"{self.daystamp}_OddExt_not_req_Computation_times.csv"
-        #     print("This works")
 
         if self.relevant:
-            log_dir = Path(f"Logs/Required_odd_ext")
+            log_dir = type(self).odd_log_dir
             file_path = log_dir / f"{self.daystamp}_Computation_times.csv"
+
         else:
-            log_dir = Path(f"Logs/Fast_computation")
+            log_dir = type(self).non_odd_log_dir
             file_path = log_dir / f"{self.daystamp}_OddExt_not_req_Computation_times.csv"
+        # if self.relevant:
+        #     log_dir = Path(f"Logs/Required_odd_ext")
+        #     file_path = log_dir / f"{self.daystamp}_Computation_times.csv"
+        # else:
+        #     log_dir = Path(f"Logs/Fast_computation")
+        #     file_path = log_dir / f"{self.daystamp}_OddExt_not_req_Computation_times.csv"
 
         log_dir.mkdir(parents=True, exist_ok=True)
         file_is_there = file_path.exists()
@@ -100,7 +95,5 @@ class ExperimentEntry:
             if not file_is_there:
                 writer.writerow(headers)
             writer.writerow(data_row)
-        print(f"New data entry created in :{file_path}")
+        print(f"New data entry created in :{file_path} with id :{self.id}")
 
-test = ExperimentEntry(vertices=20,for_odd=True,id_needs_increasing=False)
-test.log()

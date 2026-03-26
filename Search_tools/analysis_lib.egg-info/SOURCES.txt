@@ -1,0 +1,13 @@
+setup.py
+analysis_lib/Candidate_analysis.py
+analysis_lib/Clique_search_fcts.py
+analysis_lib/ExpEntry.py
+analysis_lib/Graph_creation_fct.py
+analysis_lib/Trial_functions.py
+analysis_lib/__init__.py
+analysis_lib/file_directories.json
+analysis_lib.egg-info/PKG-INFO
+analysis_lib.egg-info/SOURCES.txt
+analysis_lib.egg-info/dependency_links.txt
+analysis_lib.egg-info/requires.txt
+analysis_lib.egg-info/top_level.txt

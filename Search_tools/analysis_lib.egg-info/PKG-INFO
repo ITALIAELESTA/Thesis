@@ -1,0 +1,8 @@
+Metadata-Version: 2.4
+Name: analysis_lib
+Version: 0.1
+Requires-Dist: pandas
+Requires-Dist: networkx
+Requires-Dist: numpy
+Requires-Dist: matplotlib
+Dynamic: requires-dist
