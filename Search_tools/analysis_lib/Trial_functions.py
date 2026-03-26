@@ -27,7 +27,7 @@ def find_counterexamples(nb_vertices, param1, param2, proba_int,  time_limit_fct
     computation_time_limit = time_limit_fct(
         nb_vertices)  # allows to change the timit limit function outside the function
     print(f"Time limit : {format_seconds(computation_time_limit)}")
-    step = 10
+    step = 0.01
     num_samples = int((proba_int[1] - proba_int[0]) / step) + 1
     proba_interval = np.linspace(proba_int[0], proba_int[1], num_samples)
     parameter_interval = range(param1, param2+1)
