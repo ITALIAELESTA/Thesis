@@ -1,8 +1,9 @@
 from pathlib import Path
 import csv
 import os
+import glob
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import datetime
 from .utils import get_file_path
 
 
@@ -11,7 +12,7 @@ class ExperimentEntry:
     id_string = 'id'
     odd_log_dir = Path(get_file_path('odd_directory'))
     non_odd_log_dir = Path(get_file_path('non_odd_directory'))
-    def __init__(self, for_odd=True, vertices=None, creation_time=None, analysis_time=None,
+    def __init__(self, for_odd=False, vertices=None, creation_time=None, analysis_time=None,
                  parameter=None, probability=None, time_expired=None,time_limit=None):
         if for_odd:
             self.id = ExperimentEntry._id_counter
@@ -31,23 +32,17 @@ class ExperimentEntry:
 
     @classmethod
     def initialize_id(cls):
-        # 1. Define date strings
-        today_str = datetime.now().strftime("%d_%m_%Y")
-        yesterday_str = (datetime.now() - timedelta(days=1)).strftime("%d_%m_%Y")
 
+        pattern = os.path.join(cls.odd_log_dir, "*_Computation_times.csv")
+        files = glob.glob(pattern)
 
-        today_file = f"{cls.odd_log_dir}/{today_str}_Computation_times.csv"
-        yesterday_file = f"{cls.odd_log_dir}/{yesterday_str}_Computation_times.csv"
-
-        # 2. Check Today first, then Yesterday
         target_file = None
-        if os.path.exists(today_file):
-            target_file = today_file
 
-        elif os.path.exists(yesterday_file):
-            target_file = yesterday_file
-            print("From yesterday")
-        # 3. If a file was found, grab the last ID
+        if files:
+            # 2. Sort files by modification time (most recent first)
+            # This is safer than parsing dates from filenames
+            files.sort(key=os.path.getmtime, reverse=True)
+            target_file = files[0]
         if target_file:
             try:
                 df = pd.read_csv(target_file)
@@ -55,7 +50,7 @@ class ExperimentEntry:
                     # Logic: Max ID + 1
                     cls._id_counter = df[cls.id_string].max() + 1
                     print(f"Initialized id to {cls._id_counter} from {target_file}")
-                    print(f"{today_file}")
+                    # print(f"{today_file}")
             except Exception as e:
                 print(f"Found file {target_file} but couldn't read it: {e}")
         else:

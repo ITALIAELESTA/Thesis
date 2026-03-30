@@ -58,7 +58,7 @@ def Run_further_analysis(graph_id):
         print(f"{datetime.datetime.now().strftime('%H:%M:%S')} Graph created successfully, starting analysis...")
         not_a_counterexample,_ = has_large_clique(G_odd,threshold)
         if not_a_counterexample:
-            print("BEURH")
+            # print("BEURH")
             destination_folder = Path(get_file_path('Garbage'))
             destination_folder.mkdir(parents=True, exist_ok=True)
             # Move the file
