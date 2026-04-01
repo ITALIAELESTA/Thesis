@@ -47,7 +47,8 @@ def has_large_clique(graph, threshold,time_limit=None,nodes=None):
     By then, the universe would have collapsed :skull_emoji:
     """
     start_time = time.time()
-    G = nx.k_core(graph, k=threshold - 1)
+    G = nx.k_core(graph, k=threshold - 1) # does not seem to do anything in practice,
+    # at least for odd extended graph which have a large core number
     if threshold <= 0: return True, False #those two lines are useless in the event threshold is nb_vertices/2
     if len(G) < threshold: return False, False
 
@@ -74,6 +75,9 @@ def has_large_clique(graph, threshold,time_limit=None,nodes=None):
 
     try:
         while True:
+            if time_limit and (time.time() - start_time) > time_limit:
+                print(f"Timeout reached ({time_limit}s). Terminating search.")
+                return False, True
             if ext_u:
                 q = ext_u.pop()
                 cand.remove(q)
@@ -85,10 +89,7 @@ def has_large_clique(graph, threshold,time_limit=None,nodes=None):
                     # print(f"Algorithm works well, there is a clique of size: {current_size}, which should equal {threshold}")
                     return True, False
 
-                # --- TIMEOUT CHECK --- #outside the if statement -> will run longer than desired
-                if time_limit and (time.time() - start_time) > time_limit:
-                    print(f"Timeout reached ({time_limit}s). Terminating search.")
-                    return False, True
+
 
                 adj_q = adj[q]
                 cand_q = cand & adj_q

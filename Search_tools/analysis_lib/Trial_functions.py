@@ -22,27 +22,24 @@ def format_seconds(seconds):
     # Format as a string with leading zeros
     return f"{hours:02}:{minutes:02}:{seconds:02}"
 
-def find_counterexamples(nb_vertices, param1, param2, proba_int,  time_limit_fct, nb_trials=5):
+def find_counterexamples(nb_vertices, parameter_interval, proba_int,  time_limit_fct, nb_trials=5):
     ExperimentEntry.initialize_id()  #allows for the ID of the trials to start from the highest value of current trials
     computation_time_limit = time_limit_fct(
         nb_vertices)  # allows to change the timit limit function outside the function
     print(f"Time limit : {format_seconds(computation_time_limit)}")
-    # proba_interval = np.linspace(proba_int[0], proba_int[1], 11)
-    parameter_interval = range(param1, param2+1)
-    # print(proba_interval)
 
-    for proba in proba_int:  #add a for loop for parameter_m
-        for param in parameter_interval:
+    for param in parameter_interval:
+        for proba in proba_int:
             print(f"Switched to {nb_vertices} vertices, parameter {param} and with probability {proba}")
             for trials in range(0, nb_trials):
 
-                run_trial(nb_vertices, param, proba, computation_time_limit, trials)
+                run_trial(nb_vertices, param, round(proba,3), computation_time_limit, trials)
 
 
 def run_trial(nb_vertices, param, proba, computation_time_limit, trial_number=None):
     if not trial_number: print(f"Trial:{trial_number + 1}")
     random_graph = nx.complement(clear_H0(nb_vertices, param, proba))
-    # print("Random graph : ok !")
+    print("Random graph : ok !")
 
     normal_graph_has_large_clique, _ = has_large_clique(random_graph,
                                                         threshold=nb_vertices / 2, time_limit=computation_time_limit)
@@ -83,7 +80,7 @@ def save_graph(Graph, ID, save_into_candidate_folder=True):
         print("FOUND A COUNTEREXAMPLE !!!!!!!!!!")
     else:
         folder_path = Path(get_file_path('Candidates'))
-        print("time expired, possible candidate")
+        # print("time expired, possible candidate")
 
     # 2. Create the folder if it doesn't exist
     folder_path.mkdir(parents=True, exist_ok=True)
