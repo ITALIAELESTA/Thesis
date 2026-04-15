@@ -5,6 +5,7 @@ from .Graph_creation_fct import *
 from .Trial_functions import *
 from .utils import get_file_path
 from .Plotter import *
+from .Solver import *
 
 
 import sys

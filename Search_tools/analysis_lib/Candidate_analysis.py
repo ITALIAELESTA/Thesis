@@ -1,12 +1,18 @@
-# import pandas as pd
-# import networkx as nx
+import pandas as pd
+import networkx as nx
+from networkx.algorithms import threshold
+import numpy as np
 from .Clique_search_fcts import *
 from .Graph_creation_fct import *
-from .utils import get_file_path
+from .utils import get_file_path,move_file
+from .Solver import *
 import datetime
 from pathlib import Path
 import glob
 
+set_param('sat.threads', 8)
+set_param('parallel.enable', True)
+set_param('sat.variable_decay', 0.9)
 def print_graph_info(target_id):
     # Get all csv files in the Logs folder
     target_directory = Path(get_file_path('odd_directory'))
@@ -45,35 +51,91 @@ def csv_to_graph(csv_string):
     except FileNotFoundError:
         print(f"No graph saved under {csv_string}")
 
-
-
-def Run_further_analysis(graph_id):
+def csv_to_graph_using_id(graph_id):
     target_directory = Path(get_file_path('Candidates'))
     graph_csv_filepath = Path(f"{target_directory}/{graph_id}.csv")
-    G = csv_to_graph(graph_csv_filepath)
-    if G is not None:
-        threshold = G.number_of_nodes()/2
-        print(f"{datetime.datetime.now().strftime('%H:%M:%S')} Creating the graph ...")
-        G_odd = odd_extension_graph(G)
-        print(f"{datetime.datetime.now().strftime('%H:%M:%S')} Graph created successfully, starting analysis...")
-        not_a_counterexample,_ = has_large_clique(G_odd,threshold)
-        if not_a_counterexample:
-            # print("BEURH")
+    return csv_to_graph(graph_csv_filepath)
+
+# def run_further_analysis(graph_id):#scrap it, it is WAAAAAAAAY slower than SAT solver
+#     target_directory = Path(get_file_path('Candidates'))
+#     graph_csv_filepath = Path(f"{target_directory}/{graph_id}.csv")
+#     G = csv_to_graph_using_id(graph_id)
+#     if G is not None:
+#         threshold = G.number_of_nodes()/2
+#         print(f"{datetime.datetime.now().strftime('%H:%M:%S')} Creating the graph ...")
+#         G_odd = odd_extension_graph(G)
+#         print(f"{datetime.datetime.now().strftime('%H:%M:%S')} Graph created successfully, starting analysis...")
+#         not_a_counterexample,_ = has_large_clique(G_odd,threshold)
+#         if not_a_counterexample:
+#             print("BEURH")
+#             destination_folder = Path(get_file_path('Garbage'))
+#         else:
+#             print("YES")
+#             destination_folder = Path(get_file_path('Counterexamples'))
+#
+#         move_file(graph_csv_filepath, destination_folder)
+
+def further_analysis_with_SAT(graph):
+    threshold = int(np.ceil(graph.number_of_nodes()/2))
+    s = odd_minor_solver(graph,threshold)
+    result = s.check()
+
+    if result ==sat:
+        print("SAT found")
+    elif result == unsat:
+        print("UNSAT")
+
+    return result
+
+
+def analyze_candidates():
+    target = Path(get_file_path('Candidates'))
+    files = glob.glob(f"{target}/*.csv")
+    for file in files:
+        id = file.split("/")[-1].split(".")[0]
+        print(f"Currently analyzing graph: {id}")
+        graph = csv_to_graph(file)
+        result = further_analysis_with_SAT(graph)
+        if result == sat:
             destination_folder = Path(get_file_path('Garbage'))
-            destination_folder.mkdir(parents=True, exist_ok=True)
-            # Move the file
-            file_destination = f"{destination_folder}/{graph_id}.csv"
-        else:
-            print("YES")
+        elif result == unsat:
             destination_folder = Path(get_file_path('Counterexamples'))
-            destination_folder.mkdir(parents=True, exist_ok=True)
-            # Move the file
-            file_destination = f"{destination_folder}/{graph_id}.csv"
-        graph_csv_filepath.rename(file_destination)
-        print(f"{datetime.datetime.now().strftime('%H:%M:%S')} File moved successfully to {file_destination}")
+        else:
+            destination_folder = None
+        move_file(file, destination_folder)
+
+def increments(graph,start_step=0):
+    threshold = int(np.ceil(graph.number_of_nodes() / 2))
+
+    for i in range(start_step,threshold + 1):
+        print(f"--- Testing k = {i} ---")
+
+        # 1. Create solver inside the loop
+        s = odd_minor_solver(graph, i)
+        print("Solver ready")
+        # 2. Use set_param for global parallel settings if .set() fails
 
 
+        start = time.time()
+        result = s.check()
 
+        duration = round(time.time() - start, 4)
+
+        if result == sat:
+            print(f"k={i}: SAT found in {duration}s")
+            # print_model_from_solver(s) # Call your printer here
+        elif result == unsat:
+            print(f"k={i}: UNSAT in {duration}s")
+        else:
+            print(f"k={i}: UNKNOWN in {duration}s")
+
+        with open("sah.txt", 'a') as f:
+            f.write(f"{i}: {duration} seconds\n")
+
+        # 3. Explicitly delete solver and collect garbage to free RAM
+        del s
+        import gc
+        gc.collect()
 
 
 

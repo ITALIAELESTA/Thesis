@@ -113,7 +113,7 @@ def Graph_h0(H_Red_prime, H_Blue_prime, nb_vertices, parameter_m):
     red_graph = pullback(H_Red_prime, pi_Red)
     blue_graph = pullback(H_Blue_prime, pi_Blue)
 
-    # CRITICAL: Convert to sets of frozensets to avoid ordering issues
+    # CRITICAL: Convert to sets of frozen sets to avoid ordering issues
     # and to make them static (not a live view of the graph)
     # later used to check which edges are red and which are blue, otherwise every edge is tagged as red
     # (networkx does not make copy using =, only a pointer to an element)
@@ -130,7 +130,7 @@ def Graph_h0(H_Red_prime, H_Blue_prime, nb_vertices, parameter_m):
 
 def clear_H0(nb_vertices,parameter_m,proba):
     """
-    Reproduces the process descbribed in [1], Section 3.
+    Reproduces the process described in [1], Section 3.
     Creates two binomial random graphs on m vertices, with probability p, one is red H_R, the other is blue H_B.
     It then removes all triangles in both graphs (function remove_triangles) to get H_R' and H_B'.
     Next, (this part is handled inside the function Graph_h0), pick a random map 'red' pi_R and a random map 'blue' pi_B.
@@ -209,7 +209,8 @@ def odd_extension_graph(some_graph):
     Regarding the edges we proceed as follows;
     - Keep all the original edges from G
     - If v is an original vertex and (a,b) a new vertex, connect them
-        if and only if v is disjoint from (a,b) and ax is an edge in G (it is not enough that bx is an edge in G)
+        if and only if v is disjoint from (a,b) and ax is an edge in G.
+        (it is not enough that bx is an edge in G)
     - If (a,b) and (c,d) are two new vertices, connect them if and only if they are disjoint and
     ac is an edge in G or bd is an edge in G
 

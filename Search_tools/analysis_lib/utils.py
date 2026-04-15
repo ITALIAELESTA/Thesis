@@ -1,5 +1,6 @@
 import os
 import json
+import shutil
 from pathlib import Path
 
 # Anchor this to the utils.py location
@@ -16,3 +17,30 @@ def get_file_path(key):
 
     relative_path = paths.get(key)
     return (PROJECT_ROOT / relative_path).resolve() if relative_path else None
+
+
+def move_file(source_file, destination_folder):
+    # Ensure inputs are Path objects
+    source = Path(source_file)
+    dest_dir = Path(destination_folder)
+
+    # 1. Create the destination directory if it doesn't exist
+    dest_dir.mkdir(parents=True, exist_ok=True)
+
+    # 2. Define the full destination path (folder + filename)
+    destination_path = dest_dir / source.name
+
+    # 3. Move the file
+    # .replace() is efficient but will overwrite existing files.
+    # We use source.rename() or shutil.move for cross-filesystem safety.
+    if destination_folder is None:
+        print(f"No destination folder specified")
+    else:
+        try:
+            source.rename(destination_path)
+
+            print(f"Moved: {source.name} -> {dest_dir}")
+        except FileExistsError:
+            print("File already exists")
+        except FileNotFoundError:
+            print("File does not exist")

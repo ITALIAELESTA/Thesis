@@ -8,7 +8,7 @@ setup(
     package_data={'analysis_lib': ['*.json']},
     include_package_data=True,
     install_requires=[
-        'pandas', 'networkx', 'numpy','matplotlib',
+        'pandas', 'networkx', 'numpy','matplotlib', 'seaborn'
         # List any external libraries you use, e.g.,
         # 'pandas', 'networkx', 'numpy'
     ],
