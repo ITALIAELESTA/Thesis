@@ -3,5 +3,6 @@
     "non_odd_directory": "Logs/Fast_computation",
     "Candidates": "Candidates_w_ID",
     "Counterexamples": "Counterexamples",
-    "Garbage": "Garbage"
+    "Garbage": "Garbage",
+    "Sat_computation": "Logs"
 }

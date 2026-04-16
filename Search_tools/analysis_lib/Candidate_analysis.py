@@ -9,6 +9,8 @@ from .Solver import *
 import datetime
 from pathlib import Path
 import glob
+import gc
+import csv
 
 set_param('sat.threads', 8)
 set_param('parallel.enable', True)
@@ -78,12 +80,18 @@ def csv_to_graph_using_id(graph_id):
 def further_analysis_with_SAT(graph):
     threshold = int(np.ceil(graph.number_of_nodes()/2))
     s = odd_minor_solver(graph,threshold)
+    print("Solver ready")
     result = s.check()
 
     if result ==sat:
         print("SAT found")
     elif result == unsat:
         print("UNSAT")
+
+    # Delete the reference to the solver
+    del s
+    # Force Python to actually clear the deleted objects from RAM
+    gc.collect()
 
     return result
 
@@ -92,17 +100,34 @@ def analyze_candidates():
     target = Path(get_file_path('Candidates'))
     files = glob.glob(f"{target}/*.csv")
     for file in files:
-        id = file.split("/")[-1].split(".")[0]
-        print(f"Currently analyzing graph: {id}")
+        # Convert the string ID to an integer
+        id_int = int(file.split("\\")[-1].split(".")[0])
+        print(f"Currently analyzing graph: {id_int}")
+        print_graph_info(id_int)
         graph = csv_to_graph(file)
+        start_time = time.time()
+        print("Starting with SAT")
         result = further_analysis_with_SAT(graph)
+        diff_time = round(time.time() - start_time, 4)
+        sat_folder = Path(get_file_path('Sat_computation'))
+        file_path = sat_folder / f"Sat_duration.csv"
+        sat_folder.mkdir(parents=True, exist_ok=True)
+        file_is_there = file_path.exists()
+        data_row = [id,diff_time]
+        headers = ['id','Sat analysis time']
+        with open(file_path, "a", newline="") as f:
+            writer = csv.writer(f)
+            if not file_is_there:
+                writer.writerow(headers)
+            writer.writerow(data_row)
         if result == sat:
             destination_folder = Path(get_file_path('Garbage'))
         elif result == unsat:
             destination_folder = Path(get_file_path('Counterexamples'))
-        else:
-            destination_folder = None
-        move_file(file, destination_folder)
+        try:
+            move_file(file, destination_folder)
+        except NameError:
+            pass
 
 def increments(graph,start_step=0):
     threshold = int(np.ceil(graph.number_of_nodes() / 2))
@@ -134,7 +159,7 @@ def increments(graph,start_step=0):
 
         # 3. Explicitly delete solver and collect garbage to free RAM
         del s
-        import gc
+
         gc.collect()
 
 
