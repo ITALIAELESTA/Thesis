@@ -11,26 +11,76 @@ from pathlib import Path
 import glob
 import gc
 import csv
+from pprint import pprint
+import os
+
 
 set_param('sat.threads', 8)
 set_param('parallel.enable', True)
 set_param('sat.variable_decay', 0.9)
+
+
+def get_timeout_graph_ids(metadata_path, id_col='id', vertex_col='Vertices', timeout_col='Exit via Timeout'):
+    search_pattern = os.path.join(metadata_path, "*.csv")
+    files = glob.glob(search_pattern)
+    if not files:
+        return []
+
+    df_list = []
+    for f in files:
+        try:
+            # We load everything as object/string first to prevent weird type conversions
+            df_list.append(pd.read_csv(f, usecols=[id_col, vertex_col, timeout_col]))
+        except ValueError:
+            continue
+
+    if not df_list:
+        return []
+
+    master_df = pd.concat(df_list, ignore_index=True)
+
+    # --- THE FIX: ROBUST BOOLEAN CONVERSION ---
+    # This converts "True", "true", 1, and True all into the same actual Boolean True
+    def force_boolean(value):
+        if isinstance(value, bool):
+            return value
+        str_val = str(value).strip().lower()
+        return str_val in ['True', '1', 't', 'y', 'yes']
+
+    master_df[timeout_col] = master_df[timeout_col].apply(force_boolean)
+    # ------------------------------------------
+
+    # Filter for True (the timeouts), then sort
+    sorted_df = (
+        master_df[master_df[timeout_col] == True]
+        .drop_duplicates(subset=[id_col])
+        .dropna(subset=[vertex_col])
+        .sort_values(by=vertex_col)
+    )
+    # print(f"Total rows: {len(master_df)} | Rows after timeout filter: {len(sorted_df)}")
+    return sorted_df[id_col].tolist()
+
 def print_graph_info(target_id):
     # Get all csv files in the Logs folder
     target_directory = Path(get_file_path('odd_directory'))
     files = glob.glob(f"{target_directory}/*_Computation_times.csv")
     found = False
-    for file in files:
-        df = pd.read_csv(file)
-        # Standardize column names just in case
-        df.columns = df.columns.str.strip().str.lower()
+    try:
+        int_target = int(target_id)
+        for file in files:
 
-        match = df[df['id'] == target_id]
+            df = pd.read_csv(file)
+            # Standardize column names just in case
+            df.columns = df.columns.str.strip().str.lower()
 
-        if not match.empty:
-            print(f"Found ID {target_id} in file: {file}")
-            print(match.iloc[0].to_dict())
-            found = True
+            match = df[df['id'] == int_target]
+
+            if not match.empty:
+                print(f"Found ID {target_id} in file: {file}")
+                pprint(match.iloc[0].to_dict(), sort_dicts=False)
+                found = True
+    except ValueError:
+        pass
 
     if not found:
         print(f"No entry saved under ID {target_id}")
@@ -52,11 +102,13 @@ def csv_to_graph(csv_string):
         return G
     except FileNotFoundError:
         print(f"No graph saved under {csv_string}")
+        return None
 
 def csv_to_graph_using_id(graph_id):
     target_directory = Path(get_file_path('Candidates'))
     graph_csv_filepath = Path(f"{target_directory}/{graph_id}.csv")
-    return csv_to_graph(graph_csv_filepath)
+    graph = csv_to_graph(graph_csv_filepath)
+    return graph
 
 # def run_further_analysis(graph_id):#scrap it, it is WAAAAAAAAY slower than SAT solver
 #     target_directory = Path(get_file_path('Candidates'))
@@ -95,39 +147,76 @@ def further_analysis_with_SAT(graph):
 
     return result
 
+def analyze_candidates_better():
+    #get the list of IDs
+    target_directory = Path(get_file_path('odd_directory'))
+    sorted_ids = get_timeout_graph_ids(target_directory)
+    print(sorted_ids)
+    #set up the logging
+    sat_folder = Path(get_file_path('Sat_computation'))
+    sat_folder.mkdir(parents=True, exist_ok=True)
+    file_path = sat_folder / f"Sat_duration.csv"
+    file_is_there = file_path.exists()
+
+    with open(file_path, "a", newline="") as f:
+        writer = csv.writer(f)
+    if not file_is_there:
+        headers = ['id','Sat analysis time']
+        writer.writerow(headers)
+    for graph_id in sorted_ids:
+        graph = csv_to_graph_using_id(graph_id)
+        # print(graph)
+        if graph is not None:
+            print(f"Currently analyzing graph: {graph_id}")
+            print_graph_info(graph_id)
+            start_time = time.time()
+            print("Starting with SAT")
+            result = further_analysis_with_SAT(graph)
+            diff_time = round(time.time() - start_time, 4)
+            data_row = [graph_id, diff_time]
+            writer.writerow(data_row)
+            if result == sat:
+                destination_folder = Path(get_file_path('Garbage'))
+            elif result == unsat:
+                destination_folder = Path(get_file_path('Counterexamples'))
+            try:
+                file = f"{target_directory}/{graph_id}.csv"
+                move_file(file, destination_folder)
+            except NameError:
+                pass
 
 def analyze_candidates():
     target = Path(get_file_path('Candidates'))
     files = glob.glob(f"{target}/*.csv")
+    sat_folder = Path(get_file_path('Sat_computation'))
+    sat_folder.mkdir(parents=True, exist_ok=True)
+    file_path = sat_folder / f"Sat_duration.csv"
+    file_is_there = file_path.exists()
+    headers = ['id','Sat analysis time']
+    with open(file_path, "a", newline="") as f:
+        writer = csv.writer(f)
+    if not file_is_there:
+        writer.writerow(headers)
     for file in files:
-        # Convert the string ID to an integer
-        id_int = int(file.split("\\")[-1].split(".")[0])
-        print(f"Currently analyzing graph: {id_int}")
-        print_graph_info(id_int)
         graph = csv_to_graph(file)
-        start_time = time.time()
-        print("Starting with SAT")
-        result = further_analysis_with_SAT(graph)
-        diff_time = round(time.time() - start_time, 4)
-        sat_folder = Path(get_file_path('Sat_computation'))
-        file_path = sat_folder / f"Sat_duration.csv"
-        sat_folder.mkdir(parents=True, exist_ok=True)
-        file_is_there = file_path.exists()
-        data_row = [id,diff_time]
-        headers = ['id','Sat analysis time']
-        with open(file_path, "a", newline="") as f:
-            writer = csv.writer(f)
-            if not file_is_there:
-                writer.writerow(headers)
+        if graph is not None:
+            id_int = Path(file).stem
+            print(f"Currently analyzing graph: {id_int}")
+            print_graph_info(id_int)
+            start_time = time.time()
+            print("Starting with SAT")
+            result = further_analysis_with_SAT(graph)
+            diff_time = round(time.time() - start_time, 4)
+            data_row = [id_int,diff_time]
             writer.writerow(data_row)
-        if result == sat:
-            destination_folder = Path(get_file_path('Garbage'))
-        elif result == unsat:
-            destination_folder = Path(get_file_path('Counterexamples'))
-        try:
-            move_file(file, destination_folder)
-        except NameError:
-            pass
+            if result == sat:
+                destination_folder = Path(get_file_path('Garbage'))
+            elif result == unsat:
+                destination_folder = Path(get_file_path('Counterexamples'))
+            try:
+                move_file(file, destination_folder)
+            except NameError:
+                pass
 
 def increments(graph,start_step=0):
     threshold = int(np.ceil(graph.number_of_nodes() / 2))

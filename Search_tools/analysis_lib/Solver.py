@@ -7,6 +7,11 @@ set_param('parallel.enable', True)
 set_param('sat.threads', 8)
 set_param('sat.variable_decay', 0.9)
 
+def light_symmetry_breaker(s,vert_vars,k,n):
+    for b in range(2, k + 1):
+        for v in range(1, n):
+            s.add(Implies(vert_vars[v] == b,
+                          Or([vert_vars[u] == b - 1 for u in range(v)])))
 
 def add_symmetry_breaker(s, vert_vars, k, N):
     # first_v[b] will store the index of the first vertex in branch set b
@@ -42,6 +47,19 @@ def odd_minor_solver(graph: nx.Graph, k: int) -> Solver:
         s.add(AtLeast(*nodes_in_this_set, 1))
         s.add(AtMost(*nodes_in_this_set, 2))
 
+    is_pair = [Bool(f"is_pair_{b}") for b in range(1, k + 1)]
+    #candidates do not have a clique of size k, so if there is an odd minor it must have at least two pairs
+    # (if only one there is a normal clique)
+    for b in range(1, k + 1):
+        indicators = [vert_vars[v] == b for v in range(n)]
+        # is_pair[b-1] is true if the set size is exactly 2
+        s.add(is_pair[b - 1] == (PbEq([(indicators[v], 1) for v in range(n)], 2)))
+        #this line is to ensure that if is_pair_j, the branch set B_j has exactly two vertices
+
+    # 3. Add your brute-force knowledge: "At least 2 sets are pairs"
+    # This doesn't care if it's B1 and B2 or B10 and B25.
+    s.add(AtLeast(*is_pair, 2))
+
     add_symmetry_breaker(s,vert_vars, k, n)
 
     # 2. Bipartite Branch Sets (Optimized via non-edges)
@@ -49,8 +67,9 @@ def odd_minor_solver(graph: nx.Graph, k: int) -> Solver:
     for i, j in combinations(range(n), 2):
         if not graph.has_edge(nodes[i], nodes[j]):
             # Non-edges cannot be in the same branch set
-            for b_id in range(1, k + 1):
-                s.add(Not(And(vert_vars[i] == b_id, vert_vars[j] == b_id)))
+            if not graph.has_edge(nodes[i], nodes[j]):
+                # Optimization: Use != instead of k-negations
+                s.add(Implies(vert_vars[i] > 0, vert_vars[i] != vert_vars[j]))
         else:
             # If they ARE an edge and in the same set, they must have different colors
             for b_id in range(1, k + 1):

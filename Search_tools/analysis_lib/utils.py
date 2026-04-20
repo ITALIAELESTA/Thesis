@@ -18,7 +18,6 @@ def get_file_path(key):
     relative_path = paths.get(key)
     return (PROJECT_ROOT / relative_path).resolve() if relative_path else None
 
-
 def move_file(source_file, destination_folder):
     # Ensure inputs are Path objects
     source = Path(source_file)
