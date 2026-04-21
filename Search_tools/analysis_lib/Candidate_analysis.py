@@ -224,6 +224,7 @@ def quick_analysis(graph,time_limit=None):
         threshold_step = (n+3)/4
 
     cliqueN_over4,_ = has_large_clique(graph,threshold_step,time_limit=time_limit)
+    #returns true if the graph has a clique of size more than n/4
     return cliqueN_over4
 
 def quick_analysis_all_candidates(time_limit=None):
@@ -232,8 +233,8 @@ def quick_analysis_all_candidates(time_limit=None):
     for file in files:
         graph = csv_to_graph(file)
         if graph is not None:
-            candidate = quick_analysis(graph,time_limit)
-            if not candidate:
+            no_use = quick_analysis(graph,time_limit)
+            if no_use:
                 move_file(file, garbage_folder)
 
 def has_C4(graph):
@@ -254,5 +255,4 @@ def C4_analysis_all_candidates(time_limit=None):
         if graph is not None:
             no_use = has_C4(graph)
             if no_use:
-                print(f"Moved file {file} to Garbage")
                 move_file(file, garbage_folder)
