@@ -254,4 +254,5 @@ def C4_analysis_all_candidates(time_limit=None):
         if graph is not None:
             no_use = has_C4(graph)
             if no_use:
+                print(f"Moved file {file} to Garbage")
                 move_file(file, garbage_folder)
