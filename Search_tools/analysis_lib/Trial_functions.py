@@ -1,4 +1,4 @@
-from .Candidate_analysis import C4_analysis
+from .Candidate_analysis import *
 from .Graph_creation_fct import *
 from .Clique_search_fcts import *
 import time

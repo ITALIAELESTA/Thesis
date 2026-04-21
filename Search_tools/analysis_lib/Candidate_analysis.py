@@ -236,7 +236,7 @@ def quick_analysis_all_candidates(time_limit=None):
             if not candidate:
                 move_file(file, garbage_folder)
 
-def C4_analysis(graph):
+def has_C4(graph):
     solver = get_c4_induced_solver(graph)
     result = solver.check()
     if result == sat:
@@ -252,6 +252,6 @@ def C4_analysis_all_candidates(time_limit=None):
         graph = csv_to_graph(file)
         print(graph)
         if graph is not None:
-            candidate = C4_analysis(graph)
-            if not candidate:
+            no_use = has_C4(graph)
+            if no_use:
                 move_file(file, garbage_folder)
