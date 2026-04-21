@@ -14,13 +14,11 @@ import csv
 from pprint import pprint
 import os
 
+metadata_folder = Path(get_file_path('odd_directory'))
+garbage_folder = Path(get_file_path('Garbage'))
+candidate_folder = Path(get_file_path('Candidates'))
 
-set_param('sat.threads', 8)
-set_param('parallel.enable', True)
-set_param('sat.variable_decay', 0.9)
-
-
-def get_timeout_graph_ids(metadata_path, id_col='id', vertex_col='Vertices', timeout_col='Exit via Timeout'):
+def get_timeout_graph_ids(metadata_path=metadata_folder, id_col='id', vertex_col='Vertices', timeout_col='Exit via Timeout'):
     search_pattern = os.path.join(metadata_path, "*.csv")
     files = glob.glob(search_pattern)
     if not files:
@@ -87,8 +85,6 @@ def print_graph_info(target_id):
 
     return None
 
-# print_graph_info(120)
-
 def csv_to_graph(csv_string):
     try:
         # 1. Load the CSV
@@ -110,24 +106,27 @@ def csv_to_graph_using_id(graph_id):
     graph = csv_to_graph(graph_csv_filepath)
     return graph
 
-# def run_further_analysis(graph_id):#scrap it, it is WAAAAAAAAY slower than SAT solver
-#     target_directory = Path(get_file_path('Candidates'))
-#     graph_csv_filepath = Path(f"{target_directory}/{graph_id}.csv")
-#     G = csv_to_graph_using_id(graph_id)
-#     if G is not None:
-#         threshold = G.number_of_nodes()/2
-#         print(f"{datetime.datetime.now().strftime('%H:%M:%S')} Creating the graph ...")
-#         G_odd = odd_extension_graph(G)
-#         print(f"{datetime.datetime.now().strftime('%H:%M:%S')} Graph created successfully, starting analysis...")
-#         not_a_counterexample,_ = has_large_clique(G_odd,threshold)
-#         if not_a_counterexample:
-#             print("BEURH")
-#             destination_folder = Path(get_file_path('Garbage'))
-#         else:
-#             print("YES")
-#             destination_folder = Path(get_file_path('Counterexamples'))
-#
-#         move_file(graph_csv_filepath, destination_folder)
+def run_further_analysis(graph_id, time_limit=None):#scrap it, it is WAAAAAAAAY slower than SAT solver
+    target_directory = Path(get_file_path('Candidates'))
+    graph_csv_filepath = Path(f"{target_directory}/{graph_id}.csv")
+    G = csv_to_graph_using_id(graph_id)
+    if G is not None:
+        threshold = G.number_of_nodes()/2
+        print(f"{datetime.datetime.now().strftime('%H:%M:%S')} Creating the graph ...")
+        G_odd = odd_extension_graph(G)
+        print(f"{datetime.datetime.now().strftime('%H:%M:%S')} Graph created successfully, starting analysis...")
+        not_a_counterexample,exit_through_limit = has_large_clique(G_odd,threshold,time_limit=time_limit)
+        if not_a_counterexample:
+            print("BEURH")
+            destination_folder = Path(get_file_path('Garbage'))
+        if not exit_through_limit:
+            print("YES")
+            destination_folder = Path(get_file_path('Counterexamples'))
+
+        try:
+            move_file(graph_csv_filepath, destination_folder)
+        except NameError:
+            pass
 
 def further_analysis_with_SAT(graph):
     threshold = int(np.ceil(graph.number_of_nodes()/2))
@@ -149,8 +148,7 @@ def further_analysis_with_SAT(graph):
 
 def analyze_candidates_better():
     #get the list of IDs
-    target_directory = Path(get_file_path('odd_directory'))
-    sorted_ids = get_timeout_graph_ids(target_directory)
+    sorted_ids = get_timeout_graph_ids()
     print(sorted_ids)
     #set up the logging
     sat_folder = Path(get_file_path('Sat_computation'))
@@ -180,40 +178,7 @@ def analyze_candidates_better():
             elif result == unsat:
                 destination_folder = Path(get_file_path('Counterexamples'))
             try:
-                file = f"{target_directory}/{graph_id}.csv"
-                move_file(file, destination_folder)
-            except NameError:
-                pass
-
-def analyze_candidates():
-    target = Path(get_file_path('Candidates'))
-    files = glob.glob(f"{target}/*.csv")
-    sat_folder = Path(get_file_path('Sat_computation'))
-    sat_folder.mkdir(parents=True, exist_ok=True)
-    file_path = sat_folder / f"Sat_duration.csv"
-    file_is_there = file_path.exists()
-    headers = ['id','Sat analysis time']
-    with open(file_path, "a", newline="") as f:
-        writer = csv.writer(f)
-    if not file_is_there:
-        writer.writerow(headers)
-    for file in files:
-        graph = csv_to_graph(file)
-        if graph is not None:
-            id_int = Path(file).stem
-            print(f"Currently analyzing graph: {id_int}")
-            print_graph_info(id_int)
-            start_time = time.time()
-            print("Starting with SAT")
-            result = further_analysis_with_SAT(graph)
-            diff_time = round(time.time() - start_time, 4)
-            data_row = [id_int,diff_time]
-            writer.writerow(data_row)
-            if result == sat:
-                destination_folder = Path(get_file_path('Garbage'))
-            elif result == unsat:
-                destination_folder = Path(get_file_path('Counterexamples'))
-            try:
+                file = f"{candidate_folder}/{graph_id}.csv"
                 move_file(file, destination_folder)
             except NameError:
                 pass
@@ -251,5 +216,42 @@ def increments(graph,start_step=0):
 
         gc.collect()
 
+def quick_analysis(graph,time_limit=None):
+    n = len(graph.nodes())
+    if n%2 == 0:
+        threshold_step = n/4
+    else:
+        threshold_step = (n+3)/4
 
+    cliqueN_over4,_ = has_large_clique(graph,threshold_step,time_limit=time_limit)
+    return cliqueN_over4
 
+def quick_analysis_all_candidates(time_limit=None):
+    target = Path(get_file_path('Candidates'))
+    files = glob.glob(f"{target}/*.csv")
+    for file in files:
+        graph = csv_to_graph(file)
+        if graph is not None:
+            candidate = quick_analysis(graph,time_limit)
+            if not candidate:
+                move_file(file, garbage_folder)
+
+def C4_analysis(graph):
+    solver = get_c4_induced_solver(graph)
+    result = solver.check()
+    if result == sat:
+        return True
+    elif result == unsat:
+        return False
+    return None
+
+def C4_analysis_all_candidates(time_limit=None):
+    target = Path(get_file_path('Candidates'))
+    files = glob.glob(f"{target}/*.csv")
+    for file in files:
+        graph = csv_to_graph(file)
+        print(graph)
+        if graph is not None:
+            candidate = C4_analysis(graph)
+            if not candidate:
+                move_file(file, garbage_folder)

@@ -5,36 +5,36 @@ import time
 """
 Clique search, only the second one is being used
 """
-def has_clique_of_size(some_graph, threshold,time_limit=None,using_core_method=True):
-    """
-    Returns True as soon as a maximal clique of size >= s is found.
-    Otherwise, returns False after checking all maximal cliques.
-
-    If no time limit is given, will run until it finds a large clique or ran through all the cliques.
-    By then, the universe would have collapsed :skull_emoji:
-    """
-    # find_cliques yields maximal cliques one by one
-    # print(time.time() - start)
-    if using_core_method:
-        core_graph = nx.k_core(some_graph, k=threshold - 1)
-        graph_used = core_graph
-    else:
-        graph_used = some_graph
-    # print(f"Start of clique computation:{time.time() - start}")
-    start_time = time.time()
-    exit_via_time_limit = False
-    for clique in nx.find_cliques(graph_used): #can be optimized here, because find_cliques
-        # only returns a maximal clique, so the computation might continue while having found a clique large enough
-        if len(clique) >= threshold:
-            print(f"Size of found clique:{len(clique)}, size of graph:{len(graph_used)}")
-            return True,exit_via_time_limit
-
-        if time.time() - start_time > time_limit and time_limit:
-            exit_via_time_limit = True
-            print(f"\nTIME LIMIT EXCEEDED")
-            break  # Exit the loop if too much time has passed
-    return False,exit_via_time_limit
-    #implement a "fail-safe" if the computation takes too long
+# def has_clique_of_size(some_graph, threshold,time_limit=None,using_core_method=True):
+#     """
+#     Returns True as soon as a maximal clique of size >= s is found.
+#     Otherwise, returns False after checking all maximal cliques.
+#
+#     If no time limit is given, will run until it finds a large clique or ran through all the cliques.
+#     By then, the universe would have collapsed :skull_emoji:
+#     """
+#     # find_cliques yields maximal cliques one by one
+#     # print(time.time() - start)
+#     if using_core_method:
+#         core_graph = nx.k_core(some_graph, k=threshold - 1)
+#         graph_used = core_graph
+#     else:
+#         graph_used = some_graph
+#     # print(f"Start of clique computation:{time.time() - start}")
+#     start_time = time.time()
+#     exit_via_time_limit = False
+#     for clique in nx.find_cliques(graph_used): #can be optimized here, because find_cliques
+#         # only returns a maximal clique, so the computation might continue while having found a clique large enough
+#         if len(clique) >= threshold:
+#             print(f"Size of found clique:{len(clique)}, size of graph:{len(graph_used)}")
+#             return True,exit_via_time_limit
+#
+#         if time.time() - start_time > time_limit and time_limit:
+#             exit_via_time_limit = True
+#             print(f"\nTIME LIMIT EXCEEDED")
+#             break  # Exit the loop if too much time has passed
+#     return False,exit_via_time_limit
+#     #implement a "fail-safe" if the computation takes too long
 
 def has_large_clique(graph, threshold,time_limit=None,nodes=None):
     """
@@ -110,42 +110,43 @@ def has_large_clique(graph, threshold,time_limit=None,nodes=None):
     except IndexError:
         return False, False
 
-def has_s_core(G, S): #quick algorithm, but is likely (how likely?) to skip a counterexample
-    """
-    Prunes the graph G to find if an (S-1)-core exists using an O(n+m) approach.
-    Uses collections.deque for efficient O(1) pop operations.
-    """
-    if G.number_of_nodes() < S:
-        return False
-
-    threshold = S - 1
-    # 1. Initialize degrees and the double-ended queue
-    degrees = dict(G.degree())
-    queue = c.deque([node for node, deg in degrees.items() if deg < threshold])
-
-    # Track removed nodes in a set for O(1) lookups
-    removed = set(queue)
-    remaining_count = G.number_of_nodes() - len(removed)
-
-    # 2. Iterative pruning
-    while queue:
-        # popleft() is O(1), whereas list.pop(0) is O(n)
-        v = queue.popleft()
-
-        for neighbor in G.neighbors(v):
-            if neighbor not in removed:
-                degrees[neighbor] -= 1
-
-                # If neighbor's degree drops below threshold, prune it
-                if degrees[neighbor] < threshold:
-                    removed.add(neighbor)
-                    queue.append(neighbor)
-                    remaining_count -= 1
-
-                    # Early exit: if we have fewer than S nodes left,
-                    # an S-clique is mathematically impossible.
-                    if remaining_count < S:
-                        return False
-
-    return remaining_count >= S
+# def has_s_core(G, S): #quick algorithm, but is likely (how likely?) to skip a counterexample
+#     """
+#     Prunes the graph G to find if an (S-1)-core exists using an O(n+m) approach.
+#     Uses collections.deque for efficient O(1) pop operations.
+#     """
+#     if G.number_of_nodes() < S:
+#         return False
+#
+#     threshold = S - 1
+#     # 1. Initialize degrees and the double-ended queue
+#     degrees = dict(G.degree())
+#     queue = c.deque([node for node, deg in degrees.items() if deg < threshold])
+#
+#     # Track removed nodes in a set for O(1) lookups
+#     removed = set(queue)
+#     remaining_count = G.number_of_nodes() - len(removed)
+#
+#     # 2. Iterative pruning
+#     while queue:
+#         # popleft() is O(1), whereas list.pop(0) is O(n)
+#         v = queue.popleft()
+#
+#         for neighbor in G.neighbors(v):
+#             if neighbor not in removed:
+#                 degrees[neighbor] -= 1
+#
+#                 # If neighbor's degree drops below threshold, prune it
+#                 if degrees[neighbor] < threshold:
+#                     removed.add(neighbor)
+#                     queue.append(neighbor)
+#                     remaining_count -= 1
+#
+#                     # Early exit: if we have fewer than S nodes left,
+#                     # an S-clique is mathematically impossible.
+#                     if remaining_count < S:
+#                         return False
+#
+#     return remaining_count >= S
+#
 

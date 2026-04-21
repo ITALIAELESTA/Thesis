@@ -5,7 +5,7 @@ from itertools import combinations
 
 set_param('parallel.enable', True)
 set_param('sat.threads', 8)
-set_param('sat.variable_decay', 0.9)
+set_param('sat.variable_decay', 1)
 
 def light_symmetry_breaker(s,vert_vars,k,n):
     for b in range(2, k + 1):
@@ -66,14 +66,11 @@ def odd_minor_solver(graph: nx.Graph, k: int) -> Solver:
     # If size is 2, the two nodes MUST be adjacent.
     for i, j in combinations(range(n), 2):
         if not graph.has_edge(nodes[i], nodes[j]):
-            # Non-edges cannot be in the same branch set
-            if not graph.has_edge(nodes[i], nodes[j]):
-                # Optimization: Use != instead of k-negations
-                s.add(Implies(vert_vars[i] > 0, vert_vars[i] != vert_vars[j]))
+            # Non-edges cannot be in the same set
+            s.add(Implies(vert_vars[i] > 0, vert_vars[i] != vert_vars[j]))
         else:
             # If they ARE an edge and in the same set, they must have different colors
-            for b_id in range(1, k + 1):
-                s.add(Implies(And(vert_vars[i] == b_id, vert_vars[j] == b_id),
+            s.add(Implies(And(vert_vars[i] == vert_vars[j], vert_vars[i] > 0),
                               color_vars[i] != color_vars[j]))
 
     # 3. Odd Clique Connections (The "Existence" Clause)
@@ -166,3 +163,58 @@ def print_model_from_solver(s: Solver):
 
     print("=" * 40)
 
+
+def get_c4_induced_solver(G):
+    """
+    Returns a Z3 solver that checks if the graph G contains
+    an induced subgraph isomorphic to C4.
+    """
+    solver = Solver()
+    nodes = list(G.nodes())
+
+    # Define 4 variables representing the indices of the vertices in G
+    # mapping to the vertices of the C4 cycle (p1, p2, p3, p4)
+    p = [Int(f'p{i}') for i in range(4)]
+
+    # Constraint 1: Every p[i] must correspond to a valid node index in G
+    for i in range(4):
+        solver.add(p[i] >= 0, p[i] < len(nodes))
+
+    # Constraint 2: All four vertices must be distinct
+    solver.add(Distinct(p))
+
+    # Define the adjacency matrix for the target C4
+    # Edges: (0,1), (1,2), (2,3), (3,0)
+    c4_edges = {(0, 1), (1, 2), (2, 3), (3, 0)}
+
+    # Constraint 3: The "Induced" Mapping
+    # For every pair (i, j) in our 4 chosen vertices:
+    # If (i, j) is an edge in C4, there MUST be an edge in G.
+    # If (i, j) is NOT an edge in C4, there MUST NOT be an edge in G.
+    for i in range(4):
+        for j in range(i + 1, 4):
+            # Check if this pair is part of the C4 cycle
+            is_c4_edge = (i, j) in c4_edges or (j, i) in c4_edges
+
+            # Build the condition based on G's actual adjacency
+            edge_conditions = []
+            for u_idx in range(len(nodes)):
+                for v_idx in range(len(nodes)):
+                    if u_idx == v_idx:
+                        continue
+
+                    # Does an edge exist between node at u_idx and node at v_idx?
+                    has_edge = G.has_edge(nodes[u_idx], nodes[v_idx])
+
+                    if is_c4_edge:
+                        # If it should be an edge, G must have it
+                        if not has_edge:
+                            solver.add(Not(And(p[i] == u_idx, p[j] == v_idx)))
+                            solver.add(Not(And(p[i] == v_idx, p[j] == u_idx)))
+                    else:
+                        # If it's an induced subgraph, non-C4-edges must NOT exist in G
+                        if has_edge:
+                            solver.add(Not(And(p[i] == u_idx, p[j] == v_idx)))
+                            solver.add(Not(And(p[i] == v_idx, p[j] == u_idx)))
+
+    return solver

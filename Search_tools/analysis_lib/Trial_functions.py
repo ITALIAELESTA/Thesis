@@ -1,3 +1,4 @@
+from . import C4_analysis
 from .Graph_creation_fct import *
 from .Clique_search_fcts import *
 import time
@@ -40,11 +41,16 @@ def run_trial(nb_vertices, param, proba, computation_time_limit, trial_number=No
     if not trial_number: print(f"Trial:{trial_number + 1}")
     random_graph = nx.complement(clear_H0(nb_vertices, param, proba))
     print("Random graph : ok !")
-
+    if nb_vertices%2==0:
+        threshold_step = nb_vertices/4
+    else:
+        threshold_step = (nb_vertices+3)/4
     normal_graph_has_large_clique, _ = has_large_clique(random_graph,
-                                                        threshold=nb_vertices / 2, time_limit=computation_time_limit)
+                                                        threshold=threshold_step, time_limit=computation_time_limit)
 
-    if not normal_graph_has_large_clique:
+    has_induced_C4 = C4_analysis(graph=random_graph)
+
+    if not normal_graph_has_large_clique and not has_induced_C4:
         print(f"Odd extension required, creating odd extension, {datetime.now().strftime('%H:%M:%S')}")
         time_start = time.time()
         odd_extended_random_graph = odd_extension_graph(random_graph)
