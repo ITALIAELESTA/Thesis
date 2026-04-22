@@ -1,6 +1,7 @@
 {
     "odd_directory": "Logs/Required_odd_ext",
     "non_odd_directory": "Logs/Fast_computation",
+    "Tickets": "Logs/.tickets",
     "Candidates": "Candidates_w_ID",
     "Counterexamples": "Counterexamples",
     "Garbage": "Garbage",

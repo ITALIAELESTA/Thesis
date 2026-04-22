@@ -237,14 +237,24 @@ def quick_analysis_all_candidates(time_limit=None):
             if no_use:
                 move_file(file, garbage_folder)
 
-def has_C4(graph):
+def has_C4(graph,time_limit=None):
     solver = get_c4_induced_solver(graph)
+    if time_limit is not None:
+        solver.set("timeout", time_limit*1000) #timeout considers second argument as milliseconds
     result = solver.check()
+    # Delete the reference to the solver
+
     if result == sat:
-        return True
+        answer = True
     elif result == unsat:
-        return False
-    return None
+        answer = False
+    else:
+        answer = None
+    del solver
+    # Force Python to actually clear the deleted objects from RAM
+    gc.collect()
+    return answer
+
 
 def C4_analysis_all_candidates(time_limit=None):
     target = Path(get_file_path('Candidates'))
@@ -253,6 +263,6 @@ def C4_analysis_all_candidates(time_limit=None):
         graph = csv_to_graph(file)
         print(graph)
         if graph is not None:
-            no_use = has_C4(graph)
+            no_use = has_C4(graph,time_limit)
             if no_use:
                 move_file(file, garbage_folder)

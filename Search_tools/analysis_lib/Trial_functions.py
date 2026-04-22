@@ -24,7 +24,7 @@ def format_seconds(seconds):
     return f"{hours:02}:{minutes:02}:{seconds:02}"
 
 def find_counterexamples(nb_vertices, parameter_interval, proba_int,  time_limit_fct, nb_trials=5):
-    ExperimentEntry.initialize_id()  #allows for the ID of the trials to start from the highest value of current trials
+    # ExperimentEntry.initialize_id()  #allows for the ID of the trials to start from the highest value of current trials
     computation_time_limit = time_limit_fct(
         nb_vertices)  # allows to change the timit limit function outside the function
     print(f"Time limit : {format_seconds(computation_time_limit)}")
@@ -38,17 +38,21 @@ def find_counterexamples(nb_vertices, parameter_interval, proba_int,  time_limit
 
 
 def run_trial(nb_vertices, param, proba, computation_time_limit, trial_number=None):
-    if not trial_number: print(f"Trial:{trial_number + 1}")
+    if trial_number is not None: print(f"Trial:{trial_number + 1}")
     random_graph = nx.complement(clear_H0(nb_vertices, param, proba))
     print("Random graph : ok !")
     if nb_vertices%2==0:
         threshold_step = nb_vertices/4
     else:
         threshold_step = (nb_vertices+3)/4
-    normal_graph_has_large_clique, _ = has_large_clique(random_graph,
-                                                        threshold=threshold_step, time_limit=computation_time_limit)
 
     has_induced_C4 = has_C4(graph=random_graph)
+    if not has_induced_C4: #no need to compute the large clique if it has a C4
+        normal_graph_has_large_clique, _ = has_large_clique(random_graph,
+                                                        threshold=threshold_step, time_limit=computation_time_limit)
+    else:
+        normal_graph_has_large_clique = True
+
 
     if not normal_graph_has_large_clique and not has_induced_C4:
         print(f"Odd extension required, creating odd extension, {datetime.now().strftime('%H:%M:%S')}")
@@ -65,7 +69,7 @@ def run_trial(nb_vertices, param, proba, computation_time_limit, trial_number=No
 
         # print(f"Time needed to analyze:{round(time_required_for_analysis, 4)},{datetime.now().strftime('%H:%M:%S')}")
 
-        new_entry = ExperimentEntry(vertices=nb_vertices, for_odd=True,
+        new_entry = ExperimentEntry(vertices=nb_vertices, need_odd=True,
                                     creation_time=round(graph_creation_duration, 4),
                                     analysis_time=round(time_required_for_analysis, 4), parameter=param,
                                     probability=proba, time_expired=time_expired, time_limit=computation_time_limit)
@@ -74,7 +78,7 @@ def run_trial(nb_vertices, param, proba, computation_time_limit, trial_number=No
             save_graph(random_graph, int(new_entry.id), save_into_candidate_folder=time_expired)
     else:
         # print(f"Graph has large clique already")
-        new_entry = ExperimentEntry(vertices=nb_vertices, for_odd=False, parameter=param,
+        new_entry = ExperimentEntry(vertices=nb_vertices, need_odd=False, parameter=param,
                                     probability=proba)  # does not log a time limit,
         # since it is an entry taken on a small graph
         new_entry.log()

@@ -12,14 +12,13 @@ class ExperimentEntry:
     id_string = 'id'
     odd_log_dir = Path(get_file_path('odd_directory'))
     non_odd_log_dir = Path(get_file_path('non_odd_directory'))
-    def __init__(self, for_odd=False, vertices=None, creation_time=None, analysis_time=None,
+    def __init__(self, need_odd=False, vertices=None, creation_time=None, analysis_time=None,
                  parameter=None, probability=None, time_expired=None,time_limit=None):
-        if for_odd:
-            self.id = ExperimentEntry._id_counter
-            ExperimentEntry._id_counter += 1
+        if need_odd:
+            self.id = self._get_next_cluster_id()
         else:
             self.id = None
-        self.relevant = for_odd
+        self.relevant = need_odd
         self.vertices = vertices
         self.creation_time = creation_time
         self.analysis_time = analysis_time
@@ -29,6 +28,30 @@ class ExperimentEntry:
         self.daystamp = datetime.now().strftime("%d_%m_%Y")
         self.timestamp = datetime.now().strftime('%H:%M:%S')
         self.time_limit = time_limit
+
+    @staticmethod
+    def _get_next_cluster_id():
+        # Create a hidden directory to store "ticket" files
+        ticket_dir = Path(get_file_path('Tickets'))
+        ticket_dir.mkdir(parents=True, exist_ok=True)
+
+        # 1. Look at existing tickets to find the current high-water mark
+        existing_tickets = [int(f) for f in os.listdir(ticket_dir) if f.isdigit()]
+        next_id = max(existing_tickets) + 1 if existing_tickets else 1
+
+        # 2. Try to "claim" this ID by creating an empty file
+        while True:
+            try:
+                # 'x' mode means "exclusive creation" - it fails if file exists
+                ticket_path = ticket_dir / str(next_id)
+                with open(ticket_path, "x") as f:
+                    pass
+                    # If we get here, we successfully claimed the ID
+                return next_id
+            except FileExistsError:
+                # Someone else grabbed this ID in the last millisecond!
+                # Increment and try the next one.
+                next_id += 1
 
     @classmethod
     def initialize_id(cls):

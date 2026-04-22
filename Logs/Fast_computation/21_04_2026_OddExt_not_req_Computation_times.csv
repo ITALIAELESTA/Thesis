@@ -1,0 +1,14 @@
+id,Vertices,Parameter,Probability,Creation Time,Analysis Time,Timestamp,Exit via Timeout,Time Limit
+,100,45,0.3,,,15:48:38,,Nones
+,100,45,0.4,,,15:48:50,,Nones
+,100,45,0,,,15:49:03,,Nones
+,100,45,0.3,,,15:52:05,,Nones
+,100,45,0.4,,,15:52:18,,Nones
+,100,45,0.5,,,15:52:31,,Nones
+,100,50,0.3,,,15:52:48,,Nones
+,100,50,0.4,,,15:53:09,,Nones
+,100,50,0.5,,,15:53:22,,Nones
+,100,55,0.3,,,15:53:37,,Nones
+,100,55,0.4,,,15:53:51,,Nones
+,100,55,0.5,,,15:54:04,,Nones
+,200,45,0.3,,,16:03:47,,Nones
