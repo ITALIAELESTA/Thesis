@@ -218,3 +218,4 @@ def get_c4_induced_solver(G):
                             solver.add(Not(And(p[i] == v_idx, p[j] == u_idx)))
 
     return solver
+

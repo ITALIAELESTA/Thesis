@@ -47,14 +47,10 @@ def run_trial(nb_vertices, param, proba, computation_time_limit, trial_number=No
         threshold_step = (nb_vertices+3)/4
 
     has_induced_C4 = has_C4(graph=random_graph)
-    if not has_induced_C4: #no need to compute the large clique if it has a C4
-        normal_graph_has_large_clique, _ = has_large_clique(random_graph,
+    normal_graph_has_large_clique, _ = has_large_clique(random_graph,
                                                         threshold=threshold_step, time_limit=computation_time_limit)
-    else:
-        normal_graph_has_large_clique = True
 
-
-    if not normal_graph_has_large_clique and not has_induced_C4:
+    if not normal_graph_has_large_clique and has_induced_C4:
         print(f"Odd extension required, creating odd extension, {datetime.now().strftime('%H:%M:%S')}")
         time_start = time.time()
         odd_extended_random_graph = odd_extension_graph(random_graph)
