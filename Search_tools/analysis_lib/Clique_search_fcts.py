@@ -3,7 +3,7 @@ import collections as c
 import time
 
 """
-Clique search, only the second one is being used
+Clique search, only the first one is being used
 """
 # def has_clique_of_size(some_graph, threshold,time_limit=None,using_core_method=True):
 #     """

@@ -4,6 +4,7 @@ from .Clique_search_fcts import *
 import time
 from .ExpEntry import *
 from .utils import get_file_path
+from .Solver import get_c4_induced_solver
 from datetime import datetime
 import gc
 import psutil
@@ -47,23 +48,23 @@ def run_trial(nb_vertices, param, proba, computation_time_limit, trial_number=No
     if trial_number is not None: print(f"Trial:{trial_number + 1}")
     random_graph = nx.complement(clear_H0(nb_vertices, param, proba))
     print("Random graph : ok !")
-    if nb_vertices%2==0:
-        threshold_step = nb_vertices/4
-    else:
-        threshold_step = (nb_vertices+3)/4
+    # if nb_vertices%2==0:
+    #     threshold_step = nb_vertices/4
+    # else:
+    #     threshold_step = (nb_vertices+3)/4
 
-    #has_induced_C4 = has_C4(graph=random_graph)
+
     start = time.time()
-    normal_graph_has_large_clique, exit_via_time_limit = has_large_clique(random_graph,
-                                                        threshold=threshold_step, time_limit=computation_time_limit)
-
-    ana_time = round(time.time()-start,4)
-    new_entry = ExperimentEntry(vertices=nb_vertices, need_odd=not normal_graph_has_large_clique,
+    # normal_graph_has_large_clique, exit_via_time_limit = has_large_clique(random_graph,
+    #                                                     threshold=threshold_step, time_limit=computation_time_limit)
+    has_induced_C4 = has_C4(graph=random_graph)
+    ana_time = round(time.time() - start, 4)
+    new_entry = ExperimentEntry(vertices=nb_vertices, need_odd=not has_induced_C4,
                                     creation_time=None,
                                     analysis_time=ana_time, parameter=param,
-                                    probability=proba, time_expired=exit_via_time_limit, time_limit=computation_time_limit)
+                                    probability=proba, time_expired=None, time_limit=computation_time_limit)
     new_entry.log()
-    if not normal_graph_has_large_clique:
+    if not has_induced_C4:
         # print(f"Odd extension required, creating odd extension, {datetime.now().strftime('%H:%M:%S')}")
         # time_start = time.time()
         # odd_extended_random_graph = odd_extension_graph(random_graph)
