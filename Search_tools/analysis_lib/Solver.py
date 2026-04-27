@@ -3,6 +3,8 @@ import networkx as nx
 import numpy as np
 from itertools import combinations
 
+import psutil
+
 set_param('parallel.enable', True)
 set_param('sat.threads', 8)
 set_param('sat.variable_decay', 1)
@@ -163,13 +165,17 @@ def print_model_from_solver(s: Solver):
 
     print("=" * 40)
 
-
-def get_c4_induced_solver(G):
+def print_used_memory():
+    print(f"Memory in use: {process.memory_info().rss / 1024 / 1024:.2f} MB")
+    
+def get_c4_induced_solver(G,show_memory_used=False):
     """
     Returns a Z3 solver that checks if the graph G contains
     an induced subgraph isomorphic to C4.
     """
+    print("before solver")
     solver = Solver()
+    print("after solver")
     nodes = list(G.nodes())
 
     # Define 4 variables representing the indices of the vertices in G
@@ -191,8 +197,10 @@ def get_c4_induced_solver(G):
     # For every pair (i, j) in our 4 chosen vertices:
     # If (i, j) is an edge in C4, there MUST be an edge in G.
     # If (i, j) is NOT an edge in C4, there MUST NOT be an edge in G.
+    
     for i in range(4):
         for j in range(i + 1, 4):
+            if show_memory_used: print_used_memory()
             # Check if this pair is part of the C4 cycle
             is_c4_edge = (i, j) in c4_edges or (j, i) in c4_edges
 

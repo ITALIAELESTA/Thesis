@@ -12,6 +12,7 @@ import gc
 import csv
 from pprint import pprint
 import os
+import psutil
 
 metadata_folder = Path(get_file_path('odd_directory'))
 garbage_folder = Path(get_file_path('Garbage'))
@@ -242,22 +243,23 @@ def has_C4(graph,time_limit=None):
         solver.set("timeout", time_limit*1000) #timeout considers second argument as milliseconds
     result = solver.check()
     # Delete the reference to the solver
-
+    del solver
+    gc.collect()
     if result == sat:
         answer = True
     elif result == unsat:
         answer = False
     else:
         answer = None
-    del solver
-    # Force Python to actually clear the deleted objects from RAM
-    gc.collect()
+    
+    
     return answer
 
 
 def C4_analysis_all_candidates(time_limit=None):
     target = Path(get_file_path('Candidates'))
     files = glob.glob(f"{target}/*.csv")
+    start_time = time.time()
     for file in files:
         graph = csv_to_graph(file)
         print(graph)
@@ -265,3 +267,4 @@ def C4_analysis_all_candidates(time_limit=None):
             no_use = has_C4(graph,time_limit)
             if no_use:
                 move_file(file, garbage_folder)
+        print(round(time.time()-start_time,4))

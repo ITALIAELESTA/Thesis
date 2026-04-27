@@ -46,7 +46,10 @@ def find_counterexamples(nb_vertices, parameter_interval, proba_int,  time_limit
 
 def run_trial(nb_vertices, param, proba, computation_time_limit, trial_number=None):
     if trial_number is not None: print(f"Trial:{trial_number + 1}")
+
+    time1 = time.time()
     random_graph = nx.complement(clear_H0(nb_vertices, param, proba))
+    creation_time = round(time.time()-time1,3)
     print("Random graph : ok !")
     # if nb_vertices%2==0:
     #     threshold_step = nb_vertices/4
@@ -57,14 +60,25 @@ def run_trial(nb_vertices, param, proba, computation_time_limit, trial_number=No
     start = time.time()
     # normal_graph_has_large_clique, exit_via_time_limit = has_large_clique(random_graph,
     #                                                     threshold=threshold_step, time_limit=computation_time_limit)
-    has_induced_C4 = has_C4(graph=random_graph)
-    ana_time = round(time.time() - start, 4)
-    new_entry = ExperimentEntry(vertices=nb_vertices, need_odd=not has_induced_C4,
-                                    creation_time=None,
+    C4_solver = get_c4_induced_solver(random_graph,show_memory_used=True)
+    if computation_time_limit is not None:
+        solver.set("timeout", computation_time_limit*1000) #timeout considers second argument as milliseconds
+    result = C4_solver.check()
+    ana_time = round(time.time() - start, 3)
+    del C4_solver
+    gc.collect()
+    if result == sat:
+        useless = True
+    else result == unsat:
+        useless = False
+
+    
+    new_entry = ExperimentEntry(vertices=nb_vertices, need_odd=not useless,
+                                    creation_time=creation_time,
                                     analysis_time=ana_time, parameter=param,
                                     probability=proba, time_expired=None, time_limit=computation_time_limit)
     new_entry.log()
-    if not has_induced_C4:
+    if not useless:
         # print(f"Odd extension required, creating odd extension, {datetime.now().strftime('%H:%M:%S')}")
         # time_start = time.time()
         # odd_extended_random_graph = odd_extension_graph(random_graph)
