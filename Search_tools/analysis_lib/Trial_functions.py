@@ -62,14 +62,14 @@ def run_trial(nb_vertices, param, proba, computation_time_limit, trial_number=No
     #                                                     threshold=threshold_step, time_limit=computation_time_limit)
     C4_solver = get_c4_induced_solver(random_graph,show_memory_used=True)
     if computation_time_limit is not None:
-        solver.set("timeout", computation_time_limit*1000) #timeout considers second argument as milliseconds
+        C4_solver.set("timeout", computation_time_limit*1000) #timeout considers second argument as milliseconds
     result = C4_solver.check()
     ana_time = round(time.time() - start, 3)
     del C4_solver
     gc.collect()
     if result == sat:
         useless = True
-    else result == unsat:
+    else:
         useless = False
 
     

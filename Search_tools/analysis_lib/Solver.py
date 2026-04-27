@@ -166,6 +166,7 @@ def print_model_from_solver(s: Solver):
     print("=" * 40)
 
 def print_used_memory():
+    process = psutil.Process(os.getpid())
     print(f"Memory in use: {process.memory_info().rss / 1024 / 1024:.2f} MB")
     
 def get_c4_induced_solver(G,show_memory_used=False):
@@ -173,9 +174,8 @@ def get_c4_induced_solver(G,show_memory_used=False):
     Returns a Z3 solver that checks if the graph G contains
     an induced subgraph isomorphic to C4.
     """
-    print("before solver")
+
     solver = Solver()
-    print("after solver")
     nodes = list(G.nodes())
 
     # Define 4 variables representing the indices of the vertices in G

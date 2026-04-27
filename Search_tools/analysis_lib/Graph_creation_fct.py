@@ -72,7 +72,7 @@ def uniform_random_fct(n,m):
 def pullback(some_graph, mapping):
     """
     From a graph G on m vertices, and a mapping f:[n] -> [m] (usually m<n), create a new graph
-    G^ with n vertices and connect two vertices u,v iff f(u) and f(v) are adjacent in G.
+    G with n vertices and connect two vertices u,v iff f(u) and f(v) are adjacent in G.
 
     :param some_graph:
     :param mapping:
