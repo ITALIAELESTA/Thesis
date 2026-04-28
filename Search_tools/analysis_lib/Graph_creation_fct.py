@@ -5,7 +5,8 @@ from itertools import combinations
 import numpy as np
 import time
 import pandas as pd
-
+import psutil
+import os
 start = time.time()
 
 """
@@ -27,10 +28,20 @@ To remove the triangles in a graph
 """
 
 
-def get_triangles(some_graph):
-    H = some_graph.copy()
-    list_of_triangles = [clique for clique in nx.enumerate_all_cliques(H) if len(clique) == 3]
-    return list_of_triangles
+def get_triangles(G):
+    # Sort nodes by degree to reduce the number of comparisons
+    nodes = sorted(G.nodes(), key=lambda x: G.degree(x))
+    node_idx = {node: i for i, node in enumerate(nodes)}
+
+    triangles = []
+    for i, v in enumerate(nodes):
+        # Only look at neighbors that come after 'v' in our sorted list
+        neighbors = [n for n in G.neighbors(v) if node_idx[n] > i]
+        for j, u in enumerate(neighbors):
+            for w in neighbors[j + 1:]:
+                if G.has_edge(u, w):
+                    triangles.append((v, u, w))
+    return triangles
 
 def remove_triangles(some_graph):
     """
@@ -161,7 +172,10 @@ def clear_H0(nb_vertices,parameter_m,proba):
     H_B_prime = remove_triangles(H_B)
     h0,red_edges,blue_edges = Graph_h0(H_R_prime,H_B_prime,nb_vertices,parameter_m)
     #red_edges, blue_edges are frozen, it is necessary, before, it tagged every blue edge as red&blue
-    for triangle in get_triangles(h0):
+    triangle_list=get_triangles(h0)
+    process = psutil.Process(os.getpid())
+    print(f"Memory during creation: {process.memory_info().rss / 1024 / 1024:.2f} MB")
+    for triangle in triangle_list:
         if is_clique(h0, triangle):
             # Convert combinations to frozensets for the lookup
             tri_edges = [frozenset(e) for e in combinations(triangle, 2)]

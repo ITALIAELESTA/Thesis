@@ -60,7 +60,7 @@ def run_trial(nb_vertices, param, proba, computation_time_limit, trial_number=No
     start = time.time()
     # normal_graph_has_large_clique, exit_via_time_limit = has_large_clique(random_graph,
     #                                                     threshold=threshold_step, time_limit=computation_time_limit)
-    C4_solver = get_c4_induced_solver(random_graph,show_memory_used=True)
+    C4_solver = get_c4_induced_solver(random_graph,show_memory_used=False)
     if computation_time_limit is not None:
         C4_solver.set("timeout", computation_time_limit*1000) #timeout considers second argument as milliseconds
     result = C4_solver.check()
