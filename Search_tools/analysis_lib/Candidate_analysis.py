@@ -264,7 +264,7 @@ def C4_analysis_all_candidates(time_limit=None):
         graph = csv_to_graph(file)
         print(graph)
         if graph is not None:
-            no_use = has_C4(graph,time_limit)
+            no_use = not has_C4(graph,time_limit)
             if no_use:
                 move_file(file, garbage_folder)
         print(round(time.time()-start_time,4))

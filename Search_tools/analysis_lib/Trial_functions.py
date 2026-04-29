@@ -63,7 +63,7 @@ def run_trial(nb_vertices, param, proba, computation_time_limit, trial_number=No
 
 
     start = time.time()
-    is_ctexample, exit_via_time_limit = has_large_clique(random_graph,
+    has_N4_clique, exit_via_time_limit = has_large_clique(random_graph,
                                                         threshold=threshold_step, time_limit=computation_time_limit)
     # C4_solver = get_c4_induced_solver(random_graph,show_memory_used=False)
     # if computation_time_limit is not None:
@@ -78,12 +78,12 @@ def run_trial(nb_vertices, param, proba, computation_time_limit, trial_number=No
     #     useless = False
      # IF A GRAPH HAS A C4, IT DOES NOT TELL ANYTHING ABOUT THE GRAPH, ONLY IF IT IS C4 FREE, THEN THE GRAPH IS USELESS
     
-    new_entry = ExperimentEntry(vertices=nb_vertices, need_odd=not is_ctexample,
+    new_entry = ExperimentEntry(vertices=nb_vertices, need_odd=not has_N4_clique,
                                     creation_time=creation_time,
                                     analysis_time=ana_time, parameter=param,
                                     probability=proba, time_expired=exit_via_time_limit, time_limit=computation_time_limit)
     new_entry.log()
-    if not is_ctexample:
+    if not has_N4_clique:
         # print(f"Odd extension required, creating odd extension, {datetime.now().strftime('%H:%M:%S')}")
         # time_start = time.time()
         # odd_extended_random_graph = odd_extension_graph(random_graph)

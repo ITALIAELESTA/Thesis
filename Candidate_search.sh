@@ -4,8 +4,8 @@
 # #SBATCH --error=Logs/errors/%A_%a_ERROR.err
 #SBATCH --time=96:00:00             # Strictly limit to 96 hours
 #SBATCH --ntasks=1                # Number of instances to run
-#SBATCH --cpus-per-task=3         # Adjust if your script uses multi-threading
-#SBATCH --mem-per-cpu=2G                   # Amount of RAM needed (e.g., 4 Gigabytes)
+#SBATCH --cpus-per-task=1       # Adjust if your script uses multi-threading
+#SBATCH --mem-per-cpu=8G                   # Amount of RAM needed (e.g., 4 Gigabytes)
 
 # Load your python environment if you use conda or modules
 #module load python/3.10 
