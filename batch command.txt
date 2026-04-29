@@ -1,0 +1,5 @@
+sbatch --output="Logs/prints/$(date +%a_%d_%m_%H:%M:%S).log" --error="Logs/errors/$(date +%a_%d:%m:%H:%M:%S).err" Candidate_search.sh
+
+sbatch --output="Logs/prints/%a__%A.log" --error="Logs/errors/%a__%A.err" Candidate_search.sh
+
+sacct -j [JOB_ID] --format=JobID,JobName,State,ExitCode,MaxRSS,Elapsed
