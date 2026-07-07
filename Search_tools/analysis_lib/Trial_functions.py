@@ -1,3 +1,5 @@
+import networkx as nx
+
 from .Candidate_analysis import *
 from .Graph_creation_fct import *
 from .Clique_search_fcts import *
@@ -131,3 +133,12 @@ def save_graph(Graph, ID, save_into_candidate_folder=True):
     del Graph
     del matrix
     gc.collect()
+
+def candidate_counterex(G):
+    n= len(G.nodes())
+    H = nx.complement(G)
+    has_triangle = has_large_clique(G,3,1000)
+    has_big_clique = has_large_clique(G,np.ceil(n/2),1000)
+    two_connected = nx.is_biconnected(G)
+
+

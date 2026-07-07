@@ -227,3 +227,102 @@ def get_c4_induced_solver(G,show_memory_used=False):
 
     return solver
 
+def clique_minor_solver(graph: nx.Graph, k: int) -> Solver:
+    s = Solver()
+    nodes = list(graph.nodes())
+    n = len(nodes)
+    vert_vars = [Int(f"x_{i}") for i in range(n)]
+    # color_vars = [Bool(f"c_{i}") for i in range(n)]
+
+    # 1. Domain and Size Constraints
+    for x in vert_vars:
+        s.add(x >= 0, x <= k)
+
+    for b_id in range(1, k + 1):
+        # This is much faster for the solver to process than Sum(If...)
+        nodes_in_this_set = [vert_vars[v] == b_id for v in range(n)]
+        s.add(AtLeast(*nodes_in_this_set, 1))
+        s.add(AtMost(*nodes_in_this_set, 2))
+
+    is_pair = [Bool(f"is_pair_{b}") for b in range(1, k + 1)]
+    #candidates do not have a clique of size k, so if there is an odd minor it must have at least two pairs
+    # (if only one there is a normal clique)
+    for b in range(1, k + 1):
+        indicators = [vert_vars[v] == b for v in range(n)]
+        # is_pair[b-1] is true if the set size is exactly 2
+        s.add(is_pair[b - 1] == (PbEq([(indicators[v], 1) for v in range(n)], 2)))
+        #this line is to ensure that if is_pair_j, the branch set B_j has exactly two vertices
+
+    # 3. Add your brute-force knowledge: "At least 2 sets are pairs"
+    # This doesn't care if it's B1 and B2 or B10 and B25.
+    s.add(AtLeast(*is_pair, 2))
+
+    add_symmetry_breaker(s,vert_vars, k, n)
+
+    # 2. Bipartite Branch Sets (Optimized via non-edges)
+    # If size is 2, the two nodes MUST be adjacent.
+    for i, j in combinations(range(n), 2):
+        if not graph.has_edge(nodes[i], nodes[j]):
+            # Non-edges cannot be in the same set
+            s.add(Implies(vert_vars[i] > 0, vert_vars[i] != vert_vars[j]))
+        else:
+            # If they ARE an edge and in the same set
+            s.add(Implies(vert_vars[i] == vert_vars[j], vert_vars[i] > 0))
+
+    # 3. Odd Clique Connections (The "Existence" Clause)
+    # For every pair of branch sets, there must be an edge with same-colored endpoints
+    for b1, b2 in combinations(range(1, k + 1), 2):
+        possible_edges = []
+
+        for i, j in combinations(range(n), 2):
+            # Only consider actual edges in the graph
+            if graph.has_edge(nodes[i], nodes[j]):
+                # Edge (i,j) is an "odd connection" between b1 and b2 if:
+                # (i in b1 AND j in b2 AND same color) OR (i in b2 AND j in b1 AND same color)
+                is_edge = Or(And(vert_vars[i] == b1, vert_vars[j] == b2),
+                                And(vert_vars[i] == b2, vert_vars[j] == b1))
+                possible_edges.append(is_edge)
+
+        s.add(Or(*possible_edges))
+
+    # for b1,b2 in combinations(range(1, k + 1), 2):
+    #     non_odd_edges = []
+    #     for i, j in combinations(range(n), 2):
+    #         if not graph.has_edge(nodes[i], nodes[j]):
+    #             non_edge = And(
+    #                 color_vars[i] == color_vars[j],
+    #                     Or(
+    #                         And (vert_vars[i] == b1, vert_vars[j] == b2),
+    #                         And (vert_vars[i] == b2, vert_vars[j] == b1)
+    #                            ))
+    #             non_odd_edges.append(non_edge)
+    #     s.add(Not(And(*non_odd_edges)))
+
+    return s
+
+
+def chromatic_number_fast_solver(graph: nx.Graph, k: int) -> Solver:
+    nodes = list(graph.nodes())
+    s = Solver()
+
+    # 1. Map each node to k boolean variables
+    color_matrix = {
+        v: [Bool(f"x_{v}_{c}") for c in range(k)]
+        for v in nodes
+    }
+
+    # 2. Every node must have at least one color
+    for v in nodes:
+        s.add(Or(color_matrix[v]))
+
+    # 3. Every node can have at most one color
+    for v in nodes:
+        for c1, c2 in combinations(range(k), 2):
+            s.add(Or(Not(color_matrix[v][c1]), Not(color_matrix[v][c2])))
+
+    # 4. FAST EDGE CHECK: Only loop over actual edges
+    for u, v in graph.edges():
+        for c in range(k):
+            s.add(Or(Not(color_matrix[u][c]), Not(color_matrix[v][c])))
+
+    return s
