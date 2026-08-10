@@ -1,6 +1,6 @@
 import argparse
 import numpy as np
-import Search_tools.analysis_lib as al
+from Thesis import Search_tools as al
 from z3 import set_param
 
 def main():
