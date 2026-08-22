@@ -2,4 +2,5 @@
 .venv
 .env
 FINDERS.ipynb
-/Explicit counterexample size/Plots.ipynb
+/Planar brute force
+Shallow_extension_sec3.ipynb

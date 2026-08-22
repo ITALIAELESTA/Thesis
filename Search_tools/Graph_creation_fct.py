@@ -59,17 +59,20 @@ def remove_triangles(some_graph):
     # this method of creating a list, loops through all the cliques given by the function, and keeps the one of size 3
     for triangle in triangles: #loops through all the triangles
         u,v,w = triangle
-        if is_clique(H,triangle):# if not a triangle anymore, no need to remove an edge
-            #necessary because if edge is not present, there is an error when trying to remove it
-            random_edge = np.random.randint(0,3)
-            # print(random_edge)
-            match random_edge:
-                case 0:
-                    H.remove_edge(u, v)
-                case 1:
-                    H.remove_edge(u,w)
-                case 2:
-                    H.remove_edge(v,w)
+        try:
+            H.remove_edge(u, v)
+        except nx.NetworkXError:
+            pass
+        try:
+            H.remove_edge(v, w)
+        except nx.NetworkXError:
+            pass
+        try:
+            H.remove_edge(w, u)
+        except nx.NetworkXError:
+            pass
+
+
     return H
 
 """
